@@ -1,0 +1,11 @@
+bin/
+obj/
+dist/
+pruebas/
+_descargas/
+referencia-papers/
+.vs/
+*.user
+*.suo
+*.tmp
+*.velora-tmp

@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Velora.App</RootNamespace>
+    <AssemblyName>Velora</AssemblyName>
+    <Version>1.0.1</Version>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <TieredPGO>false</TieredPGO>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Resources\velora.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>es</SatelliteResourceLanguages>
+    <Authors>Velora</Authors>
+    <Product>Velora</Product>
+    <Description>Visor de PDF rápido y ligero, en español</Description>
+    <Copyright>Copyright © 2026 Velora. Licencia GPL-3.0-or-later.</Copyright>
+    <!-- El tema Fluent integrado de WPF (ThemeMode) aún está marcado como experimental. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Velora.Pdf\Velora.Pdf.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE" Link="LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('..\..\LICENSE')" />
+    <None Include="..\..\AVISOS-DE-TERCEROS.md" Link="AVISOS-DE-TERCEROS.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('..\..\AVISOS-DE-TERCEROS.md')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\velora.ico" Link="Assets\app.ico" />
+    <Resource Include="Resources\velora.png" Link="Assets\app.png" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Velora.App/Velora.App.csproj" />
+    <Project Path="src/Velora.Pdf/Velora.Pdf.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Velora.Tests/Velora.Tests.csproj" />
+  </Folder>
+</Solution>

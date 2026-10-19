@@ -1,0 +1,519 @@
+<Window x:Class="Velora.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="clr-namespace:Velora.App.Viewer"
+        xmlns:pdf="clr-namespace:Velora.Pdf;assembly=Velora.Pdf"
+        xmlns:app="clr-namespace:Velora.App"
+        Title="Velora" Width="1200" Height="800" MinWidth="620" MinHeight="420"
+        Icon="/Assets/app.ico" AllowDrop="True"
+        TextOptions.TextFormattingMode="Display">
+    <!-- Barra de título propia: el menú, las herramientas y los botones de la ventana forman un único bloque -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="44" ResizeBorderThickness="6" GlassFrameThickness="0,0,0,1" CornerRadius="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+    <Window.Resources>
+        <Style x:Key="CaptionButton" TargetType="Button">
+            <Setter Property="Width" Value="46" />
+            <Setter Property="Height" Value="44" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="Tag" Value="hover">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SubtleFillColorTertiaryBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CloseCaptionButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}">
+                            <ContentPresenter x:Name="Cp" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#C42B1C" />
+                                <Setter Property="TextElement.Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#B22A1B" />
+                                <Setter Property="TextElement.Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="HeaderMenuItem" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" />
+
+        <Style x:Key="NavItem" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="Margin" Value="6,1" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" CornerRadius="6" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BrandSelectionBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ThumbCaption" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="Opacity" Value="0.8" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+
+        <DataTemplate x:Key="ThumbTemplate" DataType="{x:Type app:ThumbItem}">
+            <StackPanel Margin="0,6,0,8" HorizontalAlignment="Center">
+                <Border Width="{Binding Width}" Height="{Binding Height}" Background="White"
+                        BorderBrush="#40000000" BorderThickness="1" HorizontalAlignment="Center">
+                    <Image Source="{Binding Image}" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality" />
+                </Border>
+                <TextBlock Text="{Binding Label}" Style="{StaticResource ThumbCaption}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <HierarchicalDataTemplate x:Key="OutlineTemplate" DataType="{x:Type pdf:OutlineNode}" ItemsSource="{Binding Children}">
+            <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" Padding="0,4" ToolTip="{Binding Title}" />
+        </HierarchicalDataTemplate>
+
+        <DataTemplate x:Key="AnnotTemplate" DataType="{x:Type app:AnnotItem}">
+            <Grid Margin="2,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border Width="6" Margin="0,2,8,2" CornerRadius="3" Background="{Binding ColorBrush}" />
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" MaxHeight="64" TextTrimming="CharacterEllipsis"
+                               Opacity="0.8" Visibility="{Binding DetailVisibility}" />
+                </StackPanel>
+                <Button Grid.Column="2" Style="{StaticResource IconButton}" Tag="{Binding}" Click="OnDeleteAnnotation"
+                        ToolTip="Eliminar esta anotación" MinWidth="28" MinHeight="28" VerticalAlignment="Top">
+                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE74D;" FontSize="13" />
+                </Button>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="AttachTemplate" DataType="{x:Type pdf:AttachmentInfo}">
+            <Grid Margin="2,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
+                <Button Grid.Column="1" Style="{StaticResource IconButton}" Tag="{Binding}" Click="OnSaveAttachment"
+                        ToolTip="Guardar este adjunto…" MinWidth="28" MinHeight="28">
+                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE74E;" FontSize="14" />
+                </Button>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="RecentTemplate" DataType="{x:Type app:RecentItem}">
+            <Grid Margin="4,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource Glyph}" Text="&#xE8A5;" FontSize="22" Margin="0,0,12,0" Opacity="0.7" />
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Detail}" Opacity="0.7" FontSize="12" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <Style x:Key="PopupButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Focusable" Value="False" />
+        </Style>
+
+        <Style x:Key="ColorDot" TargetType="Button">
+            <Setter Property="Width" Value="22" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Margin" Value="3,0" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Dot" CornerRadius="11" Background="{TemplateBinding Background}" BorderBrush="#66000000" BorderThickness="1">
+                            <Border x:Name="Ring" CornerRadius="11" BorderBrush="{DynamicResource AccentFillColorDefaultBrush}" BorderThickness="0" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Ring" Property="BorderThickness" Value="2" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ===== Cabecera unificada: icono, menú, herramientas y botones de la ventana ===== -->
+        <Border x:Name="HeaderBar" Grid.Row="0" Height="44" BorderThickness="0,0,0,1" SizeChanged="OnToolbarSizeChanged"
+                BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+                Background="{DynamicResource SolidBackgroundFillColorTertiaryBrush}">
+            <Grid x:Name="ToolbarGrid">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel x:Name="HeaderLeft" Orientation="Horizontal">
+                    <Image Source="/Assets/app.png" Width="20" Height="20" Margin="14,0,8,0" RenderOptions.BitmapScalingMode="HighQuality" />
+                    <!-- Los elementos del menú se crean desde el código (MainWindow.Menus.cs) para poder recogerlos en un solo botón -->
+                    <Menu x:Name="MainMenu" Background="Transparent" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True"
+                          MenuItem.SubmenuOpened="OnMenuOpened" />
+                    <!-- Con la ventana estrecha, todo el menú se recoge en un solo botón -->
+                    <Menu x:Name="CompactMenu" Visibility="Collapsed" Background="Transparent" VerticalAlignment="Center"
+                          WindowChrome.IsHitTestVisibleInChrome="True" MenuItem.SubmenuOpened="OnMenuOpened">
+                        <MenuItem x:Name="MenuHamburger" ToolTip="Menú">
+                            <MenuItem.Header>
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE700;" />
+                            </MenuItem.Header>
+                        </MenuItem>
+                    </Menu>
+                </StackPanel>
+
+                <TextBlock x:Name="HeaderTitle" Grid.Column="1" VerticalAlignment="Center" Margin="12,0" Opacity="0.75"
+                           TextTrimming="CharacterEllipsis" IsHitTestVisible="False" />
+
+                <StackPanel x:Name="HeaderTools" Grid.Column="2" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+                    <ToggleButton x:Name="SidebarToggle" Style="{StaticResource IconToggle}" Click="OnSidebarToggle"
+                                  ToolTip="Mostrar u ocultar las miniaturas y el índice (F9)">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE8A0;" />
+                    </ToggleButton>
+                    <Border Style="{StaticResource ToolbarSeparator}" />
+                    <Button Style="{StaticResource IconButton}" Command="{x:Static app:AppCommands.PreviousPage}" ToolTip="Página anterior (Ctrl+Re Pág)">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE74A;" FontSize="14" />
+                    </Button>
+                    <Button Style="{StaticResource IconButton}" Command="{x:Static app:AppCommands.NextPage}" ToolTip="Página siguiente (Ctrl+Av Pág)">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE74B;" FontSize="14" />
+                    </Button>
+                    <TextBox x:Name="PageBox" Width="52" Height="30" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Margin="6,0,0,0"
+                             KeyDown="OnPageBoxKeyDown" GotKeyboardFocus="OnPageBoxFocus" LostKeyboardFocus="OnPageBoxLostFocus"
+                             ToolTip="Número de página (Ctrl+L para ir a otra)" />
+                    <TextBlock x:Name="PageCountText" VerticalAlignment="Center" Margin="8,0,6,0" Opacity="0.8" />
+                    <Border Style="{StaticResource ToolbarSeparator}" />
+                    <Button Style="{StaticResource IconButton}" Command="{x:Static app:AppCommands.ZoomOut}" ToolTip="Alejar (Ctrl+−)">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE71F;" />
+                    </Button>
+                    <ComboBox x:Name="ZoomBox" Width="150" Height="30" IsEditable="True" Margin="2,0"
+                              VerticalContentAlignment="Center"
+                              SelectionChanged="OnZoomSelected" KeyDown="OnZoomBoxKeyDown" ToolTip="Nivel de zoom">
+                        <ComboBoxItem Content="Ajustar al ancho" Tag="width" />
+                        <ComboBoxItem Content="Ajustar a la página" Tag="page" />
+                        <ComboBoxItem Content="50 %" Tag="0.5" />
+                        <ComboBoxItem Content="75 %" Tag="0.75" />
+                        <ComboBoxItem Content="100 %" Tag="1" />
+                        <ComboBoxItem Content="125 %" Tag="1.25" />
+                        <ComboBoxItem Content="150 %" Tag="1.5" />
+                        <ComboBoxItem Content="200 %" Tag="2" />
+                        <ComboBoxItem Content="300 %" Tag="3" />
+                        <ComboBoxItem Content="400 %" Tag="4" />
+                    </ComboBox>
+                    <Button Style="{StaticResource IconButton}" Command="{x:Static app:AppCommands.ZoomIn}" ToolTip="Acercar (Ctrl++)">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE8A3;" />
+                    </Button>
+                    <StackPanel x:Name="GroupViewOpts" Orientation="Horizontal">
+                        <Border Style="{StaticResource ToolbarSeparator}" />
+                        <Button Style="{StaticResource IconButton}" Command="{x:Static app:AppCommands.RotateRight}" ToolTip="Girar a la derecha (Ctrl+→)">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE7AD;" />
+                        </Button>
+                        <ToggleButton x:Name="TwoPagesToggle" Style="{StaticResource IconToggle}" Command="{x:Static app:AppCommands.TwoPages}"
+                                      ToolTip="Ver dos páginas a la vez">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE8A1;" />
+                        </ToggleButton>
+                    </StackPanel>
+                    <Border Style="{StaticResource ToolbarSeparator}" />
+                    <ToggleButton x:Name="FindToggle" Style="{StaticResource IconToggle}" Click="OnFindToggle" ToolTip="Buscar en el documento (Ctrl+F)">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE721;" />
+                    </ToggleButton>
+                    <StackPanel x:Name="GroupAnnot" Orientation="Horizontal">
+                        <ToggleButton x:Name="NoteToggle" Style="{StaticResource IconToggle}" Command="{x:Static app:AppCommands.NoteTool}"
+                                      ToolTip="Añadir una nota: haz clic en la página">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE90A;" />
+                        </ToggleButton>
+                        <ToggleButton x:Name="InkToggle" Style="{StaticResource IconToggle}" Command="{x:Static app:AppCommands.InkTool}"
+                                      ToolTip="Dibujar a mano alzada: arrastra sobre la página">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE70F;" />
+                        </ToggleButton>
+                        <Button x:Name="ColorButton" Style="{StaticResource IconButton}" Click="OnColorButton"
+                                ToolTip="Color de las anotaciones">
+                            <Border x:Name="ColorSwatch" Width="16" Height="16" CornerRadius="8" Background="#FFEB3B" BorderBrush="#66000000" BorderThickness="1" />
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel x:Name="CaptionButtons" Grid.Column="3" Orientation="Horizontal" Margin="8,0,0,0">
+                    <Button x:Name="MinButton" Style="{StaticResource CaptionButton}" Click="OnMinimize" ToolTip="Minimizar">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE921;" FontSize="10" />
+                    </Button>
+                    <Button x:Name="MaxButton" Style="{StaticResource CaptionButton}" Click="OnMaximize" ToolTip="Maximizar">
+                        <TextBlock x:Name="MaxGlyph" Style="{StaticResource Glyph}" Text="&#xE922;" FontSize="10" />
+                    </Button>
+                    <Button x:Name="CloseButton" Style="{StaticResource CloseCaptionButton}" Click="OnCloseWindow" ToolTip="Cerrar">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE8BB;" FontSize="10" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ===== Aviso de actualización ===== -->
+        <Border x:Name="UpdateBar" Grid.Row="1" Visibility="Collapsed" Padding="14,8" BorderThickness="0,0,0,1"
+                BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" Background="{DynamicResource BrandSelectionBrush}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="UpdateText" VerticalAlignment="Center" TextWrapping="Wrap" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0">
+                    <Button x:Name="UpdateNow" Content="Actualizar ahora" Click="OnUpdateNow" Padding="14,5" Margin="0,0,6,0" />
+                    <Button Content="Más tarde" Click="OnUpdateLater" Padding="12,5" Margin="0,0,6,0" />
+                    <Button Content="Omitir esta versión" Click="OnUpdateSkip" Padding="12,5" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ===== Barra de búsqueda ===== -->
+        <Border x:Name="SearchBar" Grid.Row="2" Visibility="Collapsed" Padding="10,6" BorderThickness="0,0,0,1"
+                BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+                Background="{DynamicResource SolidBackgroundFillColorTertiaryBrush}">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBox x:Name="SearchBox" Width="300" Height="30" VerticalContentAlignment="Center"
+                         TextChanged="OnSearchTextChanged" KeyDown="OnSearchKeyDown" ToolTip="Escribe lo que buscas y pulsa Intro" />
+                <Button Style="{StaticResource IconButton}" Command="{x:Static app:AppCommands.FindPrevious}" ToolTip="Resultado anterior (Mayús+F3)" Margin="6,0,0,0">
+                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE70E;" FontSize="13" />
+                </Button>
+                <Button Style="{StaticResource IconButton}" Command="{x:Static app:AppCommands.FindNext}" ToolTip="Resultado siguiente (F3)">
+                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE70D;" FontSize="13" />
+                </Button>
+                <TextBlock x:Name="SearchStatus" VerticalAlignment="Center" Margin="10,0" MinWidth="130" Opacity="0.85" />
+                <CheckBox x:Name="MatchCaseCheck" Content="Distinguir mayúsculas" Margin="4,0" Checked="OnSearchOptionChanged" Unchecked="OnSearchOptionChanged" Focusable="False" />
+                <CheckBox x:Name="WholeWordCheck" Content="Palabra completa" Margin="8,0" Checked="OnSearchOptionChanged" Unchecked="OnSearchOptionChanged" Focusable="False" />
+                <Button Style="{StaticResource IconButton}" Click="OnCloseSearch" ToolTip="Cerrar la búsqueda (Esc)">
+                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE711;" FontSize="13" />
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- ===== Contenido ===== -->
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="SidebarColumn" Width="0" MinWidth="0" MaxWidth="600" />
+                <ColumnDefinition x:Name="SplitterColumn" Width="0" />
+                <ColumnDefinition Width="*" MinWidth="200" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Barra lateral -->
+            <Grid x:Name="Sidebar" Grid.Column="0" Visibility="Collapsed" Background="{DynamicResource SolidBackgroundFillColorBaseBrush}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="44" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Background="{DynamicResource SolidBackgroundFillColorTertiaryBrush}"
+                        BorderThickness="0,0,1,0" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}">
+                    <StackPanel Margin="4,8">
+                        <RadioButton x:Name="TabThumbs" Style="{StaticResource {x:Type ToggleButton}}" Click="OnSidebarTab" Tag="thumbs"
+                                     GroupName="tabs" Height="36" Margin="0,2" Focusable="False" ToolTip="Miniaturas de las páginas">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE8A9;" />
+                        </RadioButton>
+                        <RadioButton x:Name="TabOutline" Style="{StaticResource {x:Type ToggleButton}}" Click="OnSidebarTab" Tag="outline"
+                                     GroupName="tabs" Height="36" Margin="0,2" Focusable="False" ToolTip="Índice del documento">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE8FD;" />
+                        </RadioButton>
+                        <RadioButton x:Name="TabAnnots" Style="{StaticResource {x:Type ToggleButton}}" Click="OnSidebarTab" Tag="annots"
+                                     GroupName="tabs" Height="36" Margin="0,2" Focusable="False" ToolTip="Anotaciones">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE90A;" />
+                        </RadioButton>
+                        <RadioButton x:Name="TabAttach" Style="{StaticResource {x:Type ToggleButton}}" Click="OnSidebarTab" Tag="attach"
+                                     GroupName="tabs" Height="36" Margin="0,2" Focusable="False" ToolTip="Archivos adjuntos">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE723;" />
+                        </RadioButton>
+                    </StackPanel>
+                </Border>
+
+                <Grid Grid.Column="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock x:Name="SidebarTitle" Margin="12,10,12,6" FontWeight="SemiBold" />
+                    <Grid Grid.Row="1">
+                        <ListBox x:Name="ThumbList" ItemContainerStyle="{StaticResource NavItem}" ItemTemplate="{StaticResource ThumbTemplate}" BorderThickness="0"
+                                 Background="Transparent" SelectionChanged="OnThumbSelected"
+                                 VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                 VirtualizingPanel.ScrollUnit="Pixel" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 VirtualizingStackPanel.CleanUpVirtualizedItem="OnThumbCleanUp" />
+                        <Grid x:Name="OutlinePanel" Visibility="Collapsed">
+                            <TreeView x:Name="OutlineTree" ItemTemplate="{StaticResource OutlineTemplate}" BorderThickness="0"
+                                      Background="Transparent" SelectedItemChanged="OnOutlineSelected"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <TreeView.ItemContainerStyle>
+                                    <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+                                        <Setter Property="IsExpanded" Value="{Binding Expanded, Mode=OneTime}" />
+                                    </Style>
+                                </TreeView.ItemContainerStyle>
+                            </TreeView>
+                            <TextBlock x:Name="OutlineEmpty" Text="Este documento no tiene índice." Margin="14" TextWrapping="Wrap" Opacity="0.7" Visibility="Collapsed" />
+                        </Grid>
+                        <Grid x:Name="AnnotPanel" Visibility="Collapsed">
+                            <ListBox x:Name="AnnotList" ItemContainerStyle="{StaticResource NavItem}" ItemTemplate="{StaticResource AnnotTemplate}" BorderThickness="0" Background="Transparent"
+                                     SelectionChanged="OnAnnotSelected" ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                            <TextBlock x:Name="AnnotEmpty" Margin="14" TextWrapping="Wrap" Opacity="0.7" Visibility="Collapsed" />
+                        </Grid>
+                        <Grid x:Name="AttachPanel" Visibility="Collapsed">
+                            <ListBox x:Name="AttachList" ItemContainerStyle="{StaticResource NavItem}" ItemTemplate="{StaticResource AttachTemplate}" BorderThickness="0" Background="Transparent"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                            <TextBlock x:Name="AttachEmpty" Text="Este documento no tiene archivos adjuntos." Margin="14" TextWrapping="Wrap" Opacity="0.7" Visibility="Collapsed" />
+                        </Grid>
+                    </Grid>
+                </Grid>
+
+            </Grid>
+
+            <GridSplitter x:Name="SidebarSplitter" Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="Transparent"
+                          ResizeBehavior="PreviousAndNext" ResizeDirection="Columns" Visibility="Collapsed"
+                          DragCompleted="OnSidebarResized" ToolTip="Arrastra para cambiar el ancho" />
+
+            <!-- Visor -->
+            <Grid Grid.Column="2" x:Name="ViewerArea" ClipToBounds="True">
+                <ScrollViewer x:Name="Scroller" CanContentScroll="True" VerticalScrollBarVisibility="Visible"
+                              HorizontalScrollBarVisibility="Auto" Focusable="False" PanningMode="None">
+                    <v:PdfView x:Name="View" />
+                </ScrollViewer>
+
+                <!-- Pantalla de bienvenida -->
+                <Grid x:Name="Welcome" Background="{DynamicResource SolidBackgroundFillColorBaseBrush}">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560" Margin="24">
+                        <Image Source="/Assets/app.png" Width="96" Height="96" HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
+                        <TextBlock Text="Velora" FontSize="32" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,12,0,0" />
+                        <TextBlock Text="Visor de PDF rápido y ligero" FontSize="15" Opacity="0.75" HorizontalAlignment="Center" Margin="0,2,0,18" />
+                        <Button Command="{x:Static app:AppCommands.Open}" HorizontalAlignment="Center" Padding="22,9" FontSize="15">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE8E5;" Margin="0,0,10,0" />
+                                <TextBlock Text="Abrir un documento…" />
+                            </StackPanel>
+                        </Button>
+                        <TextBlock Text="o arrastra aquí un archivo PDF" Opacity="0.65" HorizontalAlignment="Center" Margin="0,10,0,22" />
+                        <TextBlock Text="Documentos recientes" FontWeight="SemiBold" Margin="4,0,0,4" x:Name="RecentTitle" />
+                        <ListBox x:Name="RecentList" ItemContainerStyle="{StaticResource NavItem}" ItemTemplate="{StaticResource RecentTemplate}" MaxHeight="300" BorderThickness="0"
+                                 Background="Transparent" SelectionChanged="OnRecentSelected" ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                        <TextBlock x:Name="RecentEmpty" Text="Aún no has abierto ningún documento." Opacity="0.65" Margin="4,4" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- Aviso de carga -->
+                <Border x:Name="Loading" Visibility="Collapsed" Background="#99000000">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <ProgressBar IsIndeterminate="True" Width="220" Height="4" />
+                        <TextBlock x:Name="LoadingText" Foreground="White" Margin="0,12,0,0" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Barra flotante sobre el texto seleccionado -->
+                <Border x:Name="SelectionPopup" Visibility="Collapsed" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        CornerRadius="8" Padding="4"
+                        Background="{DynamicResource SolidBackgroundFillColorTertiaryBrush}"
+                        BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.35" />
+                    </Border.Effect>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Style="{StaticResource PopupButton}" Click="OnPopupCopy" Content="Copiar" />
+                        <Border Style="{StaticResource ToolbarSeparator}" Margin="2,4" />
+                        <Button Style="{StaticResource PopupButton}" Command="{x:Static app:AppCommands.Highlight}" Content="Resaltar" />
+                        <Button Style="{StaticResource PopupButton}" Command="{x:Static app:AppCommands.Underline}" Content="Subrayar" />
+                        <Button Style="{StaticResource PopupButton}" Command="{x:Static app:AppCommands.Squiggly}" Content="Ondulado" />
+                        <Button Style="{StaticResource PopupButton}" Command="{x:Static app:AppCommands.Strike}" Content="Tachar" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Selector de color -->
+                <Border x:Name="ColorPopup" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,150,0"
+                        CornerRadius="8" Padding="8,8"
+                        Background="{DynamicResource SolidBackgroundFillColorTertiaryBrush}"
+                        BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.35" />
+                    </Border.Effect>
+                    <StackPanel Orientation="Horizontal" x:Name="ColorDots" />
+                </Border>
+
+                <!-- Nota -->
+                <Border x:Name="NotePanel" Visibility="Collapsed" HorizontalAlignment="Left" VerticalAlignment="Top" Width="280"
+                        CornerRadius="8" Padding="10"
+                        Background="{DynamicResource SolidBackgroundFillColorTertiaryBrush}"
+                        BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.35" />
+                    </Border.Effect>
+                    <StackPanel>
+                        <TextBlock x:Name="NoteTitle" FontWeight="SemiBold" Margin="0,0,0,6" />
+                        <TextBox x:Name="NoteText" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="84" MaxHeight="180" VerticalScrollBarVisibility="Auto" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                            <Button x:Name="NoteDelete" Content="Eliminar" Click="OnNoteDelete" Margin="0,0,6,0" Visibility="Collapsed" />
+                            <Button Content="Cancelar" Click="OnNoteCancel" Margin="0,0,6,0" />
+                            <Button x:Name="NoteOk" Content="Guardar" Click="OnNoteOk" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Mensaje breve -->
+                <Border x:Name="InfoBar" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,20"
+                        CornerRadius="8" Padding="16,9" Background="#E6202124">
+                    <TextBlock x:Name="InfoText" Foreground="White" TextWrapping="Wrap" MaxWidth="560" />
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

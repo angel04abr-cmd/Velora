@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Velora.Pdf</RootNamespace>
+    <Version>1.0.1</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Motor PDF (PDFium, licencia BSD). Binarios de bblanchon/pdfium-binaries. -->
+    <PackageReference Include="bblanchon.PDFium.Win32" Version="158.0.8111" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Velora.Tests" />
+  </ItemGroup>
+
+</Project>
