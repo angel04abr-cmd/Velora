@@ -76,9 +76,11 @@ if ($Publicar) {
     $m.Groups[1].Value.Trim() | Set-Content $notas -Encoding utf8
 
     Write-Host "==> Publicando $etiqueta en GitHub…" -ForegroundColor Cyan
-    git tag -a $etiqueta -m "Velora $version"
-    git push origin HEAD
-    git push origin $etiqueta
+    # git escribe su progreso por stderr: se ejecuta con errores no fatales y se comprueba el código de salida
+    function Git { $antes = $ErrorActionPreference; $ErrorActionPreference = 'Continue'; & git @args 2>&1 | ForEach-Object { "$_" } | Write-Host; $ErrorActionPreference = $antes; if ($LASTEXITCODE -ne 0) { throw "git $args falló" } }
+    Git tag -a $etiqueta -m "Velora $version"
+    Git push origin HEAD
+    Git push origin $etiqueta
     gh release create $etiqueta $archivo "$archivo.sha256" --title "Velora $version" --notes-file $notas --verify-tag
     if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear la versión en GitHub.' }
     Write-Host "Publicada: $(gh release view $etiqueta --json url --jq .url)" -ForegroundColor Green
