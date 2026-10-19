@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Velora.Pdf\Velora.Pdf.csproj" />
+    <ProjectReference Include="..\..\src\Velora.Updates\Velora.Updates.csproj" />
   </ItemGroup>
 
   <ItemGroup>

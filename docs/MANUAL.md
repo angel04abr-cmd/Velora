@@ -9,8 +9,8 @@ doble clic maximiza. Con la ventana estrecha el menú se recoge en un botón ☰
 ## Actualizaciones
 
 Velora busca una versión nueva en GitHub cuando arranca (como mucho una vez al día) y muestra un aviso con **Actualizar ahora**, **Más tarde** y **Omitir esta versión**.
-Al aceptar, descarga el paquete, comprueba su huella SHA-256, lo instala, se cierra y se abre de nuevo con tu documento. *Ayuda → Buscar actualizaciones…* lo comprueba al momento;
-*Ayuda → Buscar actualizaciones automáticamente* lo activa o desactiva. Solo se actualiza sola la copia instalada con `Instalar.ps1`; una copia portátil abre la página de descargas.
+Al aceptar, descarga el instalador (.msi), comprueba su huella SHA-256 y lo ejecuta: Windows pide permiso de administrador, Velora se cierra, se instala la versión nueva y se abre de nuevo con tu documento. *Ayuda → Buscar actualizaciones…* lo comprueba al momento;
+*Ayuda → Buscar actualizaciones automáticamente* lo activa o desactiva. Solo se actualiza sola la copia instalada con el instalador (.msi); una copia portátil abre la página de descargas.
 
 ## Abrir documentos
 

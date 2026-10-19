@@ -9,3 +9,5 @@ referencia-papers/
 *.suo
 *.tmp
 *.velora-tmp
+.tools/
+.wix/

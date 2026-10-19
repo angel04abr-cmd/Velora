@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Windows;
+using Velora.Updates;
 
 namespace Velora.App;
 
@@ -83,8 +84,8 @@ public partial class MainWindow
         if (_updating) return;
         if (!UpdateService.CanInstallInPlace)
         {
-            // Copia portátil: no se sabe dónde reemplazarla; se abre la página de descargas.
-            if (Ask($"Esta copia de Velora no está instalada con Instalar.ps1, así que no puede actualizarse sola.\n\n¿Abrir la página de la versión {info.Version} para descargarla?", ["Abrir la página", "Cancelar"], 0, 1) == 0)
+            // Copia portátil (no instalada con el instalador): no se sabe dónde reemplazarla; se abre la página de descargas.
+            if (Ask($"Esta copia de Velora no está instalada con el instalador (.msi), así que no puede actualizarse sola.\n\n¿Abrir la página de la versión {info.Version} para descargarla?", ["Abrir la página", "Cancelar"], 0, 1) == 0)
                 Process.Start(new ProcessStartInfo(info.PageUrl) { UseShellExecute = true });
             return;
         }
@@ -102,12 +103,12 @@ public partial class MainWindow
         {
             ShowLoading($"Descargando Velora {info.Version}… 0 %");
             var progress = new Progress<double>(p => LoadingText.Text = $"Descargando Velora {info.Version}… {p:P0}");
-            string dir = await UpdateService.PrepareAsync(info, progress);
-            LoadingText.Text = $"Instalando Velora {info.Version}…";
+            string msi = await UpdateService.PrepareAsync(info, progress);
+            LoadingText.Text = $"Instalando Velora {info.Version}… (Windows pedirá permiso de administrador)";
             string? reopen = _doc?.Path;
             SaveViewState();
             _settings.Save();
-            UpdateService.LaunchInstaller(dir, reopen);
+            UpdateService.LaunchApply(msi, info, reopen);
             Application.Current.Shutdown();
         }
         catch (Exception ex)

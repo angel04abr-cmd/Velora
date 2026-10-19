@@ -1,0 +1,122 @@
+name: Probar el instalador MSI
+
+# Construye el .msi, lo instala en silencio en un Windows limpio (como administrador, igual que haría el usuario tras el aviso de permisos),
+# comprueba la carpeta de Archivos de programa, el acceso del menú Inicio, las asociaciones y la entrada de «Aplicaciones instaladas»,
+# comprueba que el programa arranca, y lo desinstala comprobando que no queda nada. Otra tarea prueba la actualización desde una versión anterior.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['installer/**', 'build.ps1', '.github/workflows/probar-instalador.yml', 'src/**']
+
+jobs:
+  instalacion:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Construir el instalador
+        shell: pwsh
+        run: ./build.ps1 -Instalador
+
+      - name: Instalar, comprobar y desinstalar
+        shell: pwsh
+        run: |
+          $msi = (Get-ChildItem dist -Filter 'Velora-*-x64.msi' | Select-Object -First 1).FullName
+          $p = Start-Process msiexec -ArgumentList '/i', "`"$msi`"", 'ADDLOCAL=ALL', '/qn', '/l*v', "`"$env:RUNNER_TEMP\inst.log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\inst.log" -Tail 80; throw "msiexec salió con $($p.ExitCode)" }
+          $dir = "$env:ProgramFiles\Velora"
+          $fallos = @()
+          foreach ($f in 'Velora.exe', 'Velora.dll', 'Velora.Pdf.dll', 'Velora.Updates.dll', 'pdfium.dll', 'LICENSE.txt', 'AVISOS-DE-TERCEROS.md', 'MANUAL.md', 'LICENSES\Apache-2.0.txt', 'LICENSES\PDFium\pdfium.txt') {
+            if (-not (Test-Path "$dir\$f")) { $fallos += "falta $f" }
+          }
+          foreach ($k in 'Software\Velora', 'Software\Velora\Capabilities', 'Software\Classes\Velora.Documento\shell\open\command', 'Software\Classes\Applications\Velora.exe\shell\open\command') {
+            if (-not (Test-Path -LiteralPath "HKLM:\$k")) { $fallos += "falta la clave HKLM\$k" }
+          }
+          if ((Get-ItemProperty HKLM:\Software\Velora).Installer -ne 'msi') { $fallos += 'falta la marca Installer=msi' }
+          if ((Get-ItemProperty HKLM:\Software\Velora).InstallDir.TrimEnd('\') -ne $dir) { $fallos += 'InstallDir no coincide con la carpeta' }
+          # Aparece en «Abrir con» y en Aplicaciones predeterminadas, sin quitarle el predeterminado a nadie
+          if ((Get-ItemProperty HKLM:\Software\RegisteredApplications).Velora -ne 'Software\Velora\Capabilities') { $fallos += 'falta el registro en RegisteredApplications' }
+          if ((Get-ItemProperty 'HKLM:\Software\Velora\Capabilities\FileAssociations').'.pdf' -ne 'Velora.Documento') { $fallos += 'falta .pdf en las capacidades' }
+          if ($null -eq (Get-ItemProperty 'HKLM:\Software\Classes\.pdf\OpenWithProgids' -ErrorAction SilentlyContinue).'Velora.Documento') { $fallos += 'falta .pdf en Abrir con' }
+          if ((Get-ItemProperty 'HKLM:\Software\Classes\.pdf' -ErrorAction SilentlyContinue).'(default)' -eq 'Velora.Documento') { $fallos += 'Velora no debe quitarle .pdf a nadie' }
+          # El acceso del menú Inicio debe apuntar al .exe (si no, Windows no ofrece «Desinstalar»)
+          $lnk = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Velora.lnk"
+          if (-not (Test-Path $lnk)) { $fallos += 'falta el acceso del menú Inicio' }
+          else { $t = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk).TargetPath; if ($t -ne "$dir\Velora.exe") { $fallos += "el acceso apunta a '$t'" } }
+          # Aparece en «Aplicaciones instaladas» (lo que habilita «Desinstalar»)
+          $arp = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object DisplayName -eq 'Velora'
+          if (-not $arp) { $fallos += 'no aparece en Aplicaciones instaladas' } else { "Aplicaciones instaladas: $($arp.DisplayName) $($arp.DisplayVersion); desinstalar: $($arp.UninstallString)" }
+          if ($fallos) { $fallos; throw 'La instalación no dejó todo lo esperado.' }
+          Write-Host 'Instalación correcta'
+
+          # El programa instalado arranca (comprueba el runtime de .NET y PDFium) y se cierra solo
+          $log = "$env:RUNNER_TEMP\arranque.log"
+          $proc = Start-Process "$dir\Velora.exe" -ArgumentList '--auto', '"esperar:500;info;salir"', '--registro', "`"$log`"", '--datos', "`"$env:RUNNER_TEMP\datos`"", '--silencioso' -PassThru
+          if (-not $proc.WaitForExit(60000)) { $proc.Kill(); throw 'Velora no arrancó en 60 s' }
+          if ($proc.ExitCode -ne 0) { if (Test-Path $log) { Get-Content $log }; throw "Velora salió con código $($proc.ExitCode)" }
+          Write-Host 'Velora arranca desde Archivos de programa'
+
+          $p = Start-Process msiexec -ArgumentList '/x', "`"$msi`"", '/qn' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "la desinstalación salió con $($p.ExitCode)" }
+          $restos = @()
+          if (Test-Path $dir) { $restos += $dir }
+          if (Test-Path $lnk) { $restos += $lnk }
+          foreach ($k in 'Software\Velora', 'Software\Classes\Velora.Documento', 'Software\Classes\Applications\Velora.exe') {
+            if (Test-Path -LiteralPath "HKLM:\$k") { $restos += "HKLM\$k" }
+          }
+          if ((Get-ItemProperty HKLM:\Software\RegisteredApplications -ErrorAction SilentlyContinue).Velora) { $restos += 'RegisteredApplications\Velora' }
+          if (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object DisplayName -eq 'Velora') { $restos += 'entrada de Aplicaciones instaladas' }
+          if ($restos) { $restos; throw 'La desinstalación dejó restos.' }
+          Write-Host 'Desinstalación limpia'
+
+  actualizacion:
+    # Lo que hace el actualizador: sobre una versión anterior instalada se ejecuta el MSI nuevo. Debe reemplazarla (una sola entrada en
+    # «Aplicaciones instaladas»), conservar la carpeta y dejar la versión nueva.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Construir el instalador nuevo y uno «antiguo»
+        shell: pwsh
+        run: |
+          ./build.ps1 -Instalador
+          $nuevo = (Get-ChildItem dist -Filter 'Velora-*-x64.msi' | Select-Object -First 1).FullName
+          $fuente = (Get-ChildItem dist -Directory -Filter 'Velora-*-win-x64' | Select-Object -First 1).FullName
+          # mismo contenido, pero etiquetado como 0.9.0
+          .\.tools\wix.exe build installer\Velora.wxs -arch x64 -d Version=0.9.0 -d "Source=$fuente" -ext WixToolset.UI.wixext -ext WixToolset.Netfx.wixext -culture es-ES -o "$env:RUNNER_TEMP\Velora-0.9.0-x64.msi"
+          if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear el MSI antiguo' }
+          "NUEVO=$nuevo" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Instalar la antigua, actualizar y comprobar
+        shell: pwsh
+        run: |
+          $old = "$env:RUNNER_TEMP\Velora-0.9.0-x64.msi"
+          $p = Start-Process msiexec -ArgumentList '/i', "`"$old`"", '/qn' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "la 0.9.0 no se instaló ($($p.ExitCode))" }
+          $v = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object DisplayName -eq 'Velora').DisplayVersion
+          if ($v -ne '0.9.0') { throw "se esperaba la 0.9.0 y hay la $v" }
+          Write-Host 'Instalada la 0.9.0'
+
+          # Igual que el actualizador: /passive /norestart (aquí en silencio total)
+          $p = Start-Process msiexec -ArgumentList '/i', "`"$env:NUEVO`"", '/qn', '/norestart', '/l*v', "`"$env:RUNNER_TEMP\upg.log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\upg.log" -Tail 80; throw "la actualización salió con $($p.ExitCode)" }
+          $fallos = @()
+          $arp = @(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object DisplayName -eq 'Velora')
+          if ($arp.Count -ne 1) { $fallos += "entradas en Aplicaciones instaladas: $($arp.Count)" }
+          elseif ($arp[0].DisplayVersion -eq '0.9.0') { $fallos += 'sigue la versión 0.9.0' }
+          if (-not (Test-Path "$env:ProgramFiles\Velora\Velora.exe")) { $fallos += 'falta Velora.exe' }
+          if ((Get-Item "$env:ProgramFiles\Velora\Velora.exe").VersionInfo.ProductVersion -notmatch '^1\.') { $fallos += 'Velora.exe no es la versión nueva' }
+          if ($fallos) { $fallos; throw 'La actualización no dejó todo como se esperaba.' }
+          Write-Host "Actualización correcta: $($arp[0].DisplayVersion)"
+
+          $p = Start-Process msiexec -ArgumentList '/x', "`"$env:NUEVO`"", '/qn' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "la desinstalación salió con $($p.ExitCode)" }
+          if (Test-Path "$env:ProgramFiles\Velora") { throw 'La desinstalación dejó la carpeta' }
+          Write-Host 'Desinstalación limpia'

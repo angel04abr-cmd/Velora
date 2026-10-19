@@ -1,5 +1,13 @@
 # Historial de cambios
 
+## [1.0.3] - 2026-10-20
+
+- **Instalador normal de Windows (.msi)**: Velora se instala en `C:\Program Files\Velora`, aparece en *Configuración → Aplicaciones → Aplicaciones instaladas* y se
+  desinstala desde allí (también desde el menú Inicio). Sustituye al instalador por usuario (`Instalar.ps1`) de las versiones 1.0.0 a 1.0.2, que no aparecía donde se esperaba.
+  Si tienes una de esas versiones, desinstálala antes (el instalador te avisa).
+- Las actualizaciones automáticas ahora descargan y ejecutan el .msi (Windows pide permiso de administrador) y comprueban su huella SHA-256.
+- Pruebas automáticas del instalador (instalar, arrancar, desinstalar y actualizar) en un Windows limpio de GitHub, y 15 pruebas nuevas del sistema de actualizaciones.
+
 ## [1.0.2] - 2026-10-19
 
 - **Cabecera unificada**: el icono, el menú (Archivo, Ver, Anotar, Ir, Ayuda), las herramientas y los botones de minimizar, maximizar y cerrar forman una sola barra

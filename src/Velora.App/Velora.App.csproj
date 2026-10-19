@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Velora.App</RootNamespace>
     <AssemblyName>Velora</AssemblyName>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <TieredPGO>false</TieredPGO>
@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Velora.Pdf\Velora.Pdf.csproj" />
+    <ProjectReference Include="..\Velora.Updates\Velora.Updates.csproj" />
   </ItemGroup>
 
   <ItemGroup>

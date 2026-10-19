@@ -17,9 +17,11 @@ y, en el tema claro, las superficies y el texto, sobrescribiendo recursos del te
 | Carpeta | Contenido |
 |---|---|
 | `src/Velora.Pdf` | Motor, sin dependencias de WPF: enlaces con PDFium (`Native/Pdfium.cs`), el hilo único de PDFium con cola de prioridades (`PdfWorker.cs`), el documento (`PdfDocument.cs`) y los cálculos del visor (`Viewer/`: disposición de páginas, baldosas, caché, texto, giro) |
+| `src/Velora.Updates` | Actualizaciones sin WPF: consulta de GitHub, descarga con comprobación SHA-256 y script de instalación (probado con un servidor falso) |
+| `installer/` | `Velora.wxs` (instalador MSI con WiX 6) y `Licencia.rtf` |
 | `src/Velora.App` | La aplicación WPF: `Viewer/PdfView.cs` (el visor), `MainWindow*.cs/xaml` (ventana, barra lateral, búsqueda, anotaciones), `Dialogs/`, `Services/` |
 | `tests/Velora.Tests` | Pruebas: motor contra PDF reales generados al vuelo, cálculos del visor, caché, texto |
-| `tools/` | `PdfBuilder.cs` (genera PDF de prueba), `GenPdf` (crea PDF de demostración y pesados), `Probar.ps1` (ejecuta la app real con órdenes automáticas), `make-icon.py`, `Instalar.ps1`, `Desinstalar.ps1` |
+| `tools/` | `PdfBuilder.cs` (genera PDF de prueba), `GenPdf` (crea PDF de demostración y pesados), `Probar.ps1` (ejecuta la app real con órdenes automáticas), `make-icon.py`, `make-licencia-rtf.py` (texto de licencia del instalador) |
 | `referencia-papers/` | Copia de consulta del código de Papers (no forma parte de Velora; está fuera del control de versiones) |
 
 ## Cómo funciona por dentro
@@ -83,20 +85,30 @@ Los elementos del menú se crean desde código (`MainWindow.Menus.cs`) porque WP
 `AdaptToolbar` calcula los anchos de cada grupo y va ocultando lo menos importante hasta que todo cabe. Comprobación: `Probar.ps1 … -Auto "zonas;maximizar"` pregunta
 a Windows qué hay bajo cada elemento (clic, arrastre o botón de maximizar).
 
+## Instalador (MSI)
+
+`installer/Velora.wxs` (WiX 6.0.2, la última versión sin cuota OSMF; `build.ps1 -Instalador` la instala en `.tools\` la primera vez) crea `Velora-x.y.z-x64.msi`:
+instalación **para todo el equipo** en `C:\Program Files\Velora` (pide administrador), acceso en el menú Inicio apuntando al `.exe` (así Windows ofrece «Desinstalar»),
+entrada en «Aplicaciones instaladas», registro como programa para `.pdf` (aparece en «Abrir con» y en Aplicaciones predeterminadas sin quitarle el predeterminado a nadie),
+acceso opcional en el escritorio, comprobación de que está el .NET 10 Desktop Runtime y actualización de versiones anteriores (`MajorUpgrade`). Marca en el registro
+`HKLM\Software\Velora` (`Installer=msi`, `InstallDir`) para que la aplicación sepa que puede actualizarse sola. Las versiones 1.0.0 a 1.0.2 se instalaban solo para el usuario
+con `Instalar.ps1`; el MSI avisa y pide desinstalarlas antes. `.github/workflows/probar-instalador.yml` instala el MSI en un Windows limpio, comprueba archivos, acceso,
+registro y «Aplicaciones instaladas», arranca el programa, lo desinstala comprobando que no queda nada y prueba la actualización desde una versión anterior.
+
 ## Actualizaciones por dentro
 
-`Services/UpdateService.cs` consulta `https://api.github.com/repos/angel04abr-cmd/Velora/releases/latest`, compara la etiqueta (`vX.Y.Z`) con la versión instalada,
-elige el asset `Velora-X.Y.Z-win-x64.zip` (o `-independiente` si la copia lleva .NET dentro) y exige el `.sha256` que lo acompaña. Descarga solo desde
-`https://github.com/angel04abr-cmd/Velora/releases/download/…`, verifica la huella, descomprime sin permitir rutas fuera de la carpeta temporal y lanza
-`Instalar.ps1 -EsperarProceso <pid> -Reabrir -AbrirArchivo <pdf>`, que espera a que Velora se cierre, reemplaza los archivos y la vuelve a abrir (si algo falla,
-anota el error en `%TEMP%\Velora-update\instalacion.log` y reabre la versión anterior). Variables para pruebas: `VELORA_FAKE_VERSION` (simula otra versión instalada) y
-`VELORA_UPDATE_SANDBOX=1` (permite actualizar una copia que no está en `%LOCALAPPDATA%\Programs\Velora` sin tocar el registro).
+`Velora.Updates/UpdateClient.cs` consulta `https://api.github.com/repos/angel04abr-cmd/Velora/releases/latest`, compara la etiqueta (`vX.Y.Z`) con la versión instalada
+(nunca baja de versión; ignora borradores y versiones de prueba), elige el asset `Velora-X.Y.Z-x64.msi` y exige el `.sha256` que lo acompaña. Descarga solo desde
+`https://github.com/angel04abr-cmd/Velora/releases/download/…`, verifica la huella (si no coincide, borra la descarga y no instala) y `UpdateService` (en la aplicación)
+escribe y lanza oculto un `.cmd` que espera a que Velora se cierre, ejecuta `msiexec /i … /passive /norestart` (Windows pide permiso de administrador) y vuelve a abrir
+Velora con el mismo documento (con el aviso «se actualizó» solo si la instalación terminó bien). `CanInstallInPlace` exige la marca del MSI en el registro; una copia portátil
+abre la página de descargas. Variable para pruebas: `VELORA_FAKE_VERSION` (simula otra versión instalada).
 **Límite:** la huella protege contra descargas dañadas o cambiadas por el camino, pero no contra alguien que controle la cuenta de GitHub (no hay firma de código).
 
 ## Publicar una versión
 
-1. Sube `<Version>` en `src/Velora.Pdf/Velora.Pdf.csproj` y `src/Velora.App/Velora.App.csproj` y añade la sección `## [x.y.z]` a `CHANGELOG.md` (sirve de notas de la versión).
-2. Haz commit de todo y ejecuta `.\build.ps1 -Publicar`: pasa las pruebas, empaqueta, crea la etiqueta `vx.y.z`, la sube y crea la Release con el `.zip` y su `.sha256`.
+1. Sube `<Version>` en los `.csproj` de `src/` y añade la sección `## [x.y.z]` a `CHANGELOG.md` (sirve de notas de la versión).
+2. Haz commit de todo y ejecuta `.\build.ps1 -Publicar`: pasa las pruebas, empaqueta, crea la etiqueta `vx.y.z`, la sube y crea la Release con el `.msi`, el `.zip` y sus `.sha256`.
 3. Las instalaciones de Velora la detectan solas (como mucho al día siguiente, o al momento con *Ayuda → Buscar actualizaciones…*).
 
 La integración continua (`.github/workflows/compilar.yml`) compila y ejecuta las pruebas en cada `push`.
@@ -104,7 +116,7 @@ La integración continua (`.github/workflows/compilar.yml`) compila y ejecuta la
 ## Actualizar
 
 - **Una versión nueva de Velora:** sube `<Version>` en `src/Velora.Pdf/Velora.Pdf.csproj` y `src/Velora.App/Velora.App.csproj`,
-  ejecuta `.\build.ps1 -Probar -Zip` y después `Instalar.ps1` de `dist\…`.
+  ejecuta `.\build.ps1 -Probar -Instalar` (o `-Publicar` para que las instalaciones se actualicen solas).
 - **Una versión nueva de PDFium:** cambia la versión de `bblanchon.PDFium.Win32` en `Velora.Pdf.csproj`
   (<https://www.nuget.org/packages/bblanchon.PDFium.Win32>), ejecuta las pruebas y, si el paquete trae licencias nuevas, actualiza `LICENSES/`.
 - **Seguir a Papers:** `git -C referencia-papers pull`; compara `po/es.po` (terminología) y los cambios de `libview/` si quieres reutilizar ideas.

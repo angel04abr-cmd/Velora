@@ -3,6 +3,7 @@
 // mediciones de velocidad) y las anota en un archivo de registro. Solo se activa con --auto.
 using System.Diagnostics;
 using System.IO;
+using Velora.Updates;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -170,7 +171,7 @@ internal sealed class Automation
             case "actualizar-comprobar":
                 {
                     var info = await UpdateService.CheckAsync();
-                    Log(info == null ? $"actualización: ya se tiene la última (actual {UpdateService.CurrentVersion})" : $"actualización: disponible {info.Version} ({info.ZipName}, {info.ZipSize / 1048576.0:0.0} MB, huella: {(info.HashUrl != null ? "sí" : "NO")}); se instala en el sitio: {UpdateService.CanInstallInPlace}");
+                    Log(info == null ? $"actualización: ya se tiene la última (actual {UpdateService.CurrentVersion})" : $"actualización: disponible {info.Version} ({info.MsiName}, {info.MsiSize / 1048576.0:0.0} MB, huella: {(info.HashUrl != null ? "sí" : "NO")}); se instala en el sitio: {UpdateService.CanInstallInPlace}");
                     break;
                 }
             case "actualizar-aplicar":

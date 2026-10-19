@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Instalador MSI de Velora (WiX Toolset 6). Se compila con (build.ps1 -Instalador lo hace solo):
+    .tools\wix.exe build installer\Velora.wxs -arch x64 -d Version=1.0.3 -d Source=dist\Velora-1.0.3-win-x64 -ext WixToolset.UI.wixext -ext WixToolset.Netfx.wixext -culture es-ES -o dist\Velora-1.0.3-x64.msi
+  Se instala PARA TODO EL EQUIPO, en C:\Program Files\Velora: pide permisos de administrador (también las actualizaciones automáticas),
+  deja el acceso en el menú Inicio con la opción «Desinstalar» y aparece en «Aplicaciones instaladas» de Windows.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui" xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx">
+  <Package Name="Velora" Manufacturer="Velora" Version="$(Version)" UpgradeCode="5D8E2B71-3A94-4C1F-9E06-7B2A4D1C8F35"
+           Scope="perMachine" Language="1034" InstallerVersion="500" Compressed="yes">
+    <SummaryInformation Description="Visor de PDF rápido y ligero" Manufacturer="Velora" />
+
+    <MajorUpgrade DowngradeErrorMessage="Ya hay una versión más nueva de Velora instalada." />
+
+    <!-- Velora necesita el .NET 10 Desktop Runtime (x64). DOTNET10 vale 0 cuando hay uno compatible. -->
+    <netfx:DotNetCompatibilityCheck Id="CompruebaDotNet10" Property="DOTNET10" RollForward="latestMinor" RuntimeType="desktop" Platform="x64" Version="10.0.0" />
+    <Launch Condition="Installed OR DOTNET10=&quot;0&quot;"
+            Message="Velora necesita el .NET 10 Desktop Runtime (x64), que no está instalado. Descárgalo desde https://dotnet.microsoft.com/download/dotnet/10.0 (Desktop Runtime) e instálalo; después vuelve a ejecutar este instalador." />
+
+    <!-- Las versiones 1.0.0 a 1.0.2 se instalaban solo para el usuario (con Instalar.ps1); no se pueden actualizar a una instalación para todo el equipo. -->
+    <Property Id="VELORA_USUARIO_ANTIGUO">
+      <RegistrySearch Id="BuscaVeloraUsuario" Root="HKCU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Velora" Name="UninstallString" Type="raw" />
+    </Property>
+    <Launch Condition="Installed OR NOT VELORA_USUARIO_ANTIGUO"
+            Message="Hay una versión anterior de Velora instalada solo para tu usuario (versiones 1.0.0 a 1.0.2). Desinstálala primero (Configuración de Windows, Aplicaciones, Velora) y vuelve a ejecutar este instalador. Tus archivos y tus ajustes no se borran." />
+
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="VeloraIcon" SourceFile="src\Velora.App\Resources\velora.ico" />
+    <Property Id="ARPPRODUCTICON" Value="VeloraIcon" />
+    <Property Id="ARPCOMMENTS" Value="Visor de PDF rápido y ligero" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/angel04abr-cmd/Velora" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/angel04abr-cmd/Velora/issues" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="installer\Licencia.rtf" />
+
+    <Feature Id="Main" Title="Velora" Description="El programa y sus avisos de licencia." Level="1" AllowAbsent="no" Display="expand">
+      <ComponentGroupRef Id="Programa" />
+      <Feature Id="Escritorio" Title="Acceso directo en el escritorio" Description="Crea un icono de Velora en el escritorio." Level="1000">
+        <ComponentRef Id="AccesoEscritorio" />
+      </Feature>
+    </Feature>
+
+    <ui:WixUI Id="WixUI_FeatureTree" />
+  </Package>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Velora" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+    <StandardDirectory Id="DesktopFolder" />
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="Programa" Directory="INSTALLFOLDER">
+      <Component Id="VeloraExe" Guid="*">
+        <File Id="VeloraExeFile" Source="$(Source)\Velora.exe" KeyPath="yes" />
+        <!-- Debe apuntar al .exe: así Windows relaciona el acceso con el programa instalado y ofrece «Desinstalar» en el menú Inicio -->
+        <Shortcut Id="AccesoInicio" Directory="ProgramMenuFolder" Name="Velora" Description="Visor de PDF rápido y ligero"
+                  Target="[INSTALLFOLDER]Velora.exe" WorkingDirectory="INSTALLFOLDER" Icon="VeloraIcon" Advertise="no" />
+        <!-- «Abrir con → Velora» del Explorador -->
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\Velora.exe" Name="FriendlyAppName" Type="string" Value="Velora" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\Velora.exe\shell\open\command" Type="string" Value="&quot;[INSTALLFOLDER]Velora.exe&quot; &quot;%1&quot;" />
+        <!-- Marca que la aplicación lee para saber que está instalada con el MSI (y puede actualizarse sola) -->
+        <RegistryValue Root="HKLM" Key="Software\Velora" Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" />
+        <RegistryValue Root="HKLM" Key="Software\Velora" Name="Installer" Type="string" Value="msi" />
+      </Component>
+      <!-- Todo lo demás de la carpeta publicada (DLL, PDFium, licencias, manual…), con sus subcarpetas -->
+      <Files Include="$(Source)\**">
+        <Exclude Files="$(Source)\Velora.exe" />
+      </Files>
+      <ComponentRef Id="RegistroAplicacion" />
+    </ComponentGroup>
+
+    <Component Id="AccesoEscritorio" Directory="INSTALLFOLDER" Guid="*">
+      <Shortcut Id="AccesoEscritorioLnk" Directory="DesktopFolder" Name="Velora" Description="Visor de PDF rápido y ligero"
+                Target="[INSTALLFOLDER]Velora.exe" WorkingDirectory="INSTALLFOLDER" Icon="VeloraIcon" Advertise="no" />
+      <RegistryValue Root="HKLM" Key="Software\Velora" Name="Escritorio" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <!--
+      Velora como programa disponible para .pdf (siempre): aparece en «Abrir con» y en Configuración de Windows > Aplicaciones
+      predeterminadas, sin quitarle el programa predeterminado a nadie (eso lo elige cada usuario).
+    -->
+    <Component Id="RegistroAplicacion" Directory="INSTALLFOLDER" Guid="*">
+      <RegistryKey Root="HKLM" Key="Software\Classes\Velora.Documento">
+        <RegistryValue Type="string" Value="Documento PDF" />
+        <RegistryValue Key="DefaultIcon" Type="string" Value="&quot;[INSTALLFOLDER]Velora.exe&quot;,0" />
+        <RegistryValue Key="shell\open" Type="string" Value="Abrir con Velora" />
+        <RegistryValue Key="shell\open" Name="Icon" Type="string" Value="&quot;[INSTALLFOLDER]Velora.exe&quot;,0" />
+        <RegistryValue Key="shell\open\command" Type="string" Value="&quot;[INSTALLFOLDER]Velora.exe&quot; &quot;%1&quot;" />
+      </RegistryKey>
+      <RegistryValue Root="HKLM" Key="Software\Classes\Applications\Velora.exe\DefaultIcon" Type="string" Value="&quot;[INSTALLFOLDER]Velora.exe&quot;,0" />
+      <RegistryValue Root="HKLM" Key="Software\Velora\Capabilities" Name="ApplicationName" Type="string" Value="Velora" KeyPath="yes" />
+      <RegistryValue Root="HKLM" Key="Software\Velora\Capabilities" Name="ApplicationDescription" Type="string" Value="Visor de PDF rápido y ligero" />
+      <RegistryValue Root="HKLM" Key="Software\RegisteredApplications" Name="Velora" Type="string" Value="Software\Velora\Capabilities" />
+      <RegistryValue Root="HKLM" Key="Software\Velora\Capabilities\FileAssociations" Name=".pdf" Type="string" Value="Velora.Documento" />
+      <RegistryValue Root="HKLM" Key="Software\Classes\.pdf\OpenWithProgids" Name="Velora.Documento" Type="string" Value="" />
+      <RegistryValue Root="HKLM" Key="Software\Classes\Applications\Velora.exe\SupportedTypes" Name=".pdf" Type="string" Value="" />
+    </Component>
+  </Fragment>
+</Wix>
