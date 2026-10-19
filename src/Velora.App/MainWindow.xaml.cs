@@ -116,6 +116,7 @@ public partial class MainWindow : Window
         Bind(AppCommands.Exit, Close);
         Bind(AppCommands.Manual, OpenManual);
         BindAsync(AppCommands.CheckUpdates, () => CheckForUpdatesAsync(manual: true));
+        Bind(AppCommands.AutoUpdates, () => { _settings.AutoUpdateCheck = !_settings.AutoUpdateCheck; _settings.Save(); });
         Bind(AppCommands.NewWindow, () => Process.Start(new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false }));
         BindAsync(AppCommands.Save, () => SaveAsync(), () => _doc?.IsModified == true);
         BindAsync(AppCommands.SaveCopy, SaveCopyAsync, hasDoc);

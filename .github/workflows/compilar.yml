@@ -1,0 +1,25 @@
+name: Compilar y probar
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Pruebas automáticas
+        run: dotnet test tests/Velora.Tests -c Release --nologo
+      - name: Empaquetar
+        run: ./build.ps1 -Zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Velora-win-x64
+          path: |
+            dist/*.zip
+            dist/*.sha256

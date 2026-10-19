@@ -32,6 +32,9 @@ public sealed class AppSettings
     public bool Maximized { get; set; }
     public uint MarkupColor { get; set; } = 0xFFFFEB3B;
     public uint InkColor { get; set; } = 0xFFE53935;
+    public bool AutoUpdateCheck { get; set; } = true;
+    public DateTime LastUpdateCheck { get; set; } = DateTime.MinValue;
+    public string? SkippedVersion { get; set; }
 
     public static string DataDir
     {

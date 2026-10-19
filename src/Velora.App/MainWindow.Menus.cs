@@ -9,7 +9,7 @@ namespace Velora.App;
 
 public partial class MainWindow
 {
-    private MenuItem? _menuSidebar, _menuTwoPages, _menuCover, _menuNote, _menuInk;
+    private MenuItem? _menuSidebar, _menuTwoPages, _menuCover, _menuNote, _menuInk, _menuAutoUpdate;
     private double _menuFullWidth, _menuCompactWidth;
 
     private MenuItem Item(RoutedUICommand command, bool checkable = false, string? gesture = null)
@@ -34,6 +34,7 @@ public partial class MainWindow
         _menuCover = Item(AppCommands.CoverAlone, true);
         _menuNote = Item(AppCommands.NoteToolMenu, true);
         _menuInk = Item(AppCommands.InkToolMenu, true);
+        _menuAutoUpdate = Item(AppCommands.AutoUpdates, true);
         return
         [
             Sub("_Archivo",
@@ -53,7 +54,7 @@ public partial class MainWindow
                 Item(AppCommands.Find), Item(AppCommands.FindNext), Item(AppCommands.FindPrevious), new Separator(),
                 Item(AppCommands.Back), Item(AppCommands.Forward)),
             Sub("Ay_uda",
-                Item(AppCommands.Manual), Item(AppCommands.CheckUpdates), new Separator(), Item(AppCommands.About)),
+                Item(AppCommands.Manual), Item(AppCommands.CheckUpdates), _menuAutoUpdate, new Separator(), Item(AppCommands.About)),
         ];
     }
 
@@ -95,6 +96,7 @@ public partial class MainWindow
         if (_menuCover != null) _menuCover.IsChecked = _coverAlone;
         if (_menuNote != null) _menuNote.IsChecked = View.Tool == ViewTool.Note;
         if (_menuInk != null) _menuInk.IsChecked = View.Tool == ViewTool.Ink;
+        if (_menuAutoUpdate != null) _menuAutoUpdate.IsChecked = _settings.AutoUpdateCheck;
         CommandManager.InvalidateRequerySuggested();
     }
 

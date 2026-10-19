@@ -5,11 +5,14 @@
 #   .\build.ps1 -Zip                  Además crea dist\Velora-<versión>-win-x64.zip (y su suma SHA256)
 #   .\build.ps1 -Independiente        Incluye .NET dentro del paquete (más grande, pero no exige tenerlo instalado)
 #   .\build.ps1 -Instalar             Tras empaquetar, instala esa versión en tu usuario (actualiza la que tengas)
+#   .\build.ps1 -Publicar             Prueba, empaqueta y publica la versión en GitHub (etiqueta vX.Y.Z + Release con el .zip y su huella).
+#                                     Las instalaciones de Velora la detectan y se actualizan solas. Necesita `gh` con sesión iniciada.
 param(
     [switch]$Probar,
     [switch]$Zip,
     [switch]$Independiente,
-    [switch]$Instalar
+    [switch]$Instalar,
+    [switch]$Publicar
 )
 $ErrorActionPreference = 'Stop'
 $raiz = $PSScriptRoot
@@ -20,6 +23,8 @@ $version = ([xml](Get-Content $csproj -Raw)).Project.PropertyGroup.Version | Whe
 if (-not $version) { throw 'No se encontró <Version> en el proyecto.' }
 $nombre = "Velora-$version-win-x64" + $(if ($Independiente) { '-independiente' } else { '' })
 $salida = Join-Path $raiz "dist\$nombre"
+
+if ($Publicar) { $Probar = $true; $Zip = $true }
 
 if ($Probar) {
     Write-Host '==> Ejecutando las pruebas…' -ForegroundColor Cyan
@@ -55,4 +60,26 @@ if ($Zip) {
 
 if ($Instalar) {
     & (Join-Path $salida 'Instalar.ps1')
+}
+
+if ($Publicar) {
+    if ($Independiente) { throw 'Publica solo el paquete normal (sin -Independiente).' }
+    $etiqueta = "v$version"
+    if (git status --porcelain) { throw 'Hay cambios sin guardar en git: haz un commit antes de publicar.' }
+    if (git tag --list $etiqueta) { throw "La etiqueta $etiqueta ya existe: sube la versión en los .csproj antes de publicar." }
+
+    # Las notas de la versión salen de CHANGELOG.md
+    $registro = Get-Content (Join-Path $raiz 'CHANGELOG.md') -Raw -Encoding utf8
+    $m = [regex]::Match($registro, "(?ms)^## \[$([regex]::Escape($version))\][^\r\n]*\r?\n(.*?)(?=^## \[|\z)")
+    if (-not $m.Success) { throw "No hay una sección [$version] en CHANGELOG.md." }
+    $notas = Join-Path $raiz "dist\notas-$version.md"
+    $m.Groups[1].Value.Trim() | Set-Content $notas -Encoding utf8
+
+    Write-Host "==> Publicando $etiqueta en GitHub…" -ForegroundColor Cyan
+    git tag -a $etiqueta -m "Velora $version"
+    git push origin HEAD
+    git push origin $etiqueta
+    gh release create $etiqueta $archivo "$archivo.sha256" --title "Velora $version" --notes-file $notas --verify-tag
+    if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear la versión en GitHub.' }
+    Write-Host "Publicada: $(gh release view $etiqueta --json url --jq .url)" -ForegroundColor Green
 }

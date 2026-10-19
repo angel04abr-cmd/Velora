@@ -1,5 +1,17 @@
 # Manual de Velora
 
+## La ventana
+
+Arriba hay una sola barra: el **icono**, el **menú** (Archivo, Ver, Anotar, Ir y Ayuda, con todos los atajos de teclado), las **herramientas**
+(panel lateral, página anterior y siguiente, zoom, giro, dos páginas, buscar, notas y dibujo) y los botones de la ventana. Se arrastra desde cualquier hueco;
+doble clic maximiza. Con la ventana estrecha el menú se recoge en un botón ☰ y se ocultan por orden los botones menos usados (todo sigue en el menú).
+
+## Actualizaciones
+
+Velora busca una versión nueva en GitHub cuando arranca (como mucho una vez al día) y muestra un aviso con **Actualizar ahora**, **Más tarde** y **Omitir esta versión**.
+Al aceptar, descarga el paquete, comprueba su huella SHA-256, lo instala, se cierra y se abre de nuevo con tu documento. *Ayuda → Buscar actualizaciones…* lo comprueba al momento;
+*Ayuda → Buscar actualizaciones automáticamente* lo activa o desactiva. Solo se actualiza sola la copia instalada con `Instalar.ps1`; una copia portátil abre la página de descargas.
+
 ## Abrir documentos
 
 - **Abrir…** (`Ctrl+O`), **arrastrar** un PDF a la ventana, o hacer doble clic en un PDF si Velora es tu lector predeterminado.

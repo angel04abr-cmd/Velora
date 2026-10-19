@@ -10,12 +10,19 @@
 #   4. Lo añade a «Aplicaciones instaladas» para poder desinstalarlo desde Configuración
 #
 # Opciones:  -Destino <carpeta>  -SinAsociacion  -SinAccesoDirecto  -CerrarProgramas  -Silencioso
+# Las usa la actualización automática de Velora:  -EsperarProceso <pid>  -Reabrir  -AbrirArchivo <pdf>  -Registro <archivo>  -SinRegistro
 param(
     [string]$Destino = (Join-Path $env:LOCALAPPDATA 'Programs\Velora'),
     [switch]$SinAsociacion,
     [switch]$SinAccesoDirecto,
     [switch]$CerrarProgramas,
     [switch]$Silencioso,
+    # Actualización desde la propia aplicación: espera a que se cierre, instala y vuelve a abrirla.
+    [int]$EsperarProceso = 0,
+    [switch]$Reabrir,
+    [string]$AbrirArchivo = '',
+    [string]$Registro = '',
+    [switch]$SinRegistro,
     # Solo para pruebas: dónde se escribe en el registro y dónde va el acceso directo.
     [string]$RaizClases = 'HKCU:\Software\Classes',
     [string]$RaizSoftware = 'HKCU:\Software',
@@ -28,12 +35,31 @@ if (-not (Test-Path $exeOrigen)) { throw "No encuentro Velora.exe en $origen. Ej
 
 function Escribir($texto, $color = 'Gray') { if (-not $Silencioso) { Write-Host $texto -ForegroundColor $color } }
 
+function Abrir-Velora($exe, $version) {
+    if (-not (Test-Path $exe)) { return }
+    $argumentos = @()
+    if ($version) { $argumentos += @('--actualizado', $version) }
+    if ($AbrirArchivo -and (Test-Path $AbrirArchivo)) { $argumentos += $AbrirArchivo }
+    $texto = ($argumentos | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' '
+    if ($texto) { Start-Process -FilePath $exe -ArgumentList $texto } else { Start-Process -FilePath $exe }
+}
+
+$exeFallback = Join-Path ([IO.Path]::GetFullPath($Destino)) 'Velora.exe'
+try {
+
 $destinoCompleto = [IO.Path]::GetFullPath($Destino)
 if ([IO.Path]::GetPathRoot($destinoCompleto) -eq $destinoCompleto) { throw 'El destino no puede ser la raíz de una unidad.' }
 if ((Test-Path $destinoCompleto) -and (Get-ChildItem $destinoCompleto -Force | Measure-Object).Count -gt 0 -and -not (Test-Path (Join-Path $destinoCompleto 'Velora.exe'))) {
     throw "La carpeta $destinoCompleto ya existe y no parece una instalación de Velora. Elige otra con -Destino."
 }
 if ($origen.TrimEnd('\') -ieq $destinoCompleto.TrimEnd('\')) { throw 'El origen y el destino son la misma carpeta.' }
+
+# 0) Si lo lanza la propia aplicación para actualizarse, se espera a que termine de cerrarse
+if ($EsperarProceso -gt 0) {
+    try { Wait-Process -Id $EsperarProceso -Timeout 90 -ErrorAction Stop } catch { }
+    Start-Sleep -Milliseconds 600
+}
+if ($SinRegistro) { $SinAsociacion = $true; $SinAccesoDirecto = $true }
 
 # 1) Programa en ejecución
 $exeDestino = Join-Path $destinoCompleto 'Velora.exe'
@@ -106,6 +132,7 @@ if (-not $SinAsociacion) {
 }
 
 # 5) «Aplicaciones instaladas»
+if (-not $SinRegistro) {
 $clave = "$RaizSoftware\Microsoft\Windows\CurrentVersion\Uninstall\Velora"
 New-Item -Path $clave -Force | Out-Null
 $tamKb = [int]((Get-ChildItem $destinoCompleto -Recurse -File | Measure-Object Length -Sum).Sum / 1KB)
@@ -118,6 +145,8 @@ foreach ($k in $valores.Keys) { Set-ItemProperty -Path $clave -Name $k -Value $v
 New-ItemProperty -Path $clave -Name 'NoModify' -Value 1 -PropertyType DWord -Force | Out-Null
 New-ItemProperty -Path $clave -Name 'NoRepair' -Value 1 -PropertyType DWord -Force | Out-Null
 
+}
+
 # Avisar al Explorador de que cambiaron las asociaciones
 if (-not $SinAsociacion -and $RaizClases -eq 'HKCU:\Software\Classes') {
     Add-Type -Namespace Win32 -Name Shell -MemberDefinition '[System.Runtime.InteropServices.DllImport("shell32.dll")] public static extern void SHChangeNotify(int e, uint f, IntPtr a, IntPtr b);'
@@ -129,3 +158,20 @@ else { Escribir ("Velora {0} instalado." -f $version) 'Green' }
 Escribir ''
 Escribir 'Para abrir los PDF con Velora siempre: Configuración → Aplicaciones → Aplicaciones predeterminadas → Velora → .pdf.'
 Escribir 'Windows no permite que un programa se ponga solo como predeterminado: ese último paso es tuyo.'
+
+if ($Reabrir) { Abrir-Velora $exeDestino $version }
+}
+catch {
+    $mensaje = ($_ | Out-String).Trim()
+    if ($Registro) {
+        try {
+            New-Item -ItemType Directory -Force (Split-Path $Registro) | Out-Null
+            Add-Content -Path $Registro -Value ("[{0}] Error al instalar: {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $mensaje)
+        } catch { }
+    }
+    if (-not $Silencioso) { Write-Host $mensaje -ForegroundColor Red }
+    # Si se estaba actualizando, se vuelve a abrir la versión que había para no dejar al usuario sin programa
+    if ($Reabrir) { Abrir-Velora $exeFallback $null }
+    exit 1
+}
+

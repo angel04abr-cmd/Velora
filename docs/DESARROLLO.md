@@ -74,6 +74,33 @@ Otras opciones: `--tema claro|oscuro`, `--tam 1200x800`, `--datos carpeta`, `--c
 | Desplazamiento continuo mientras se dibuja | 16,6 ms entre cuadros (60 fps), el peor cuadro ≈ 20–25 ms: la ventana no se atasca |
 | Memoria con un PDF de 2000 páginas tras muchos saltos | ≈ 500–800 MB según el tamaño de la caché (la caché cuesta ≈ 2,7× lo que mide en WPF) |
 
+## Cabecera y menús
+
+La ventana usa `WindowChrome` (barra de título propia de 44 px). `HeaderBar` contiene el icono, el menú, las herramientas y los botones de la ventana; las zonas que
+deben recibir clics llevan `WindowChrome.IsHitTestVisibleInChrome`, y el resto arrastra la ventana. El botón de maximizar devuelve `HTMAXBUTTON` en `WM_NCHITTEST`
+para que Windows 11 muestre sus disposiciones. Al maximizar se compensa el desborde de la ventana con un margen calculado a partir del área de trabajo del monitor.
+Los elementos del menú se crean desde código (`MainWindow.Menus.cs`) porque WPF no deja pasar un `MenuItem` de un menú a otro: así se puede recoger el menú en un botón ☰.
+`AdaptToolbar` calcula los anchos de cada grupo y va ocultando lo menos importante hasta que todo cabe. Comprobación: `Probar.ps1 … -Auto "zonas;maximizar"` pregunta
+a Windows qué hay bajo cada elemento (clic, arrastre o botón de maximizar).
+
+## Actualizaciones por dentro
+
+`Services/UpdateService.cs` consulta `https://api.github.com/repos/angel04abr-cmd/Velora/releases/latest`, compara la etiqueta (`vX.Y.Z`) con la versión instalada,
+elige el asset `Velora-X.Y.Z-win-x64.zip` (o `-independiente` si la copia lleva .NET dentro) y exige el `.sha256` que lo acompaña. Descarga solo desde
+`https://github.com/angel04abr-cmd/Velora/releases/download/…`, verifica la huella, descomprime sin permitir rutas fuera de la carpeta temporal y lanza
+`Instalar.ps1 -EsperarProceso <pid> -Reabrir -AbrirArchivo <pdf>`, que espera a que Velora se cierre, reemplaza los archivos y la vuelve a abrir (si algo falla,
+anota el error en `%TEMP%\Velora-update\instalacion.log` y reabre la versión anterior). Variables para pruebas: `VELORA_FAKE_VERSION` (simula otra versión instalada) y
+`VELORA_UPDATE_SANDBOX=1` (permite actualizar una copia que no está en `%LOCALAPPDATA%\Programs\Velora` sin tocar el registro).
+**Límite:** la huella protege contra descargas dañadas o cambiadas por el camino, pero no contra alguien que controle la cuenta de GitHub (no hay firma de código).
+
+## Publicar una versión
+
+1. Sube `<Version>` en `src/Velora.Pdf/Velora.Pdf.csproj` y `src/Velora.App/Velora.App.csproj` y añade la sección `## [x.y.z]` a `CHANGELOG.md` (sirve de notas de la versión).
+2. Haz commit de todo y ejecuta `.\build.ps1 -Publicar`: pasa las pruebas, empaqueta, crea la etiqueta `vx.y.z`, la sube y crea la Release con el `.zip` y su `.sha256`.
+3. Las instalaciones de Velora la detectan solas (como mucho al día siguiente, o al momento con *Ayuda → Buscar actualizaciones…*).
+
+La integración continua (`.github/workflows/compilar.yml`) compila y ejecuta las pruebas en cada `push`.
+
 ## Actualizar
 
 - **Una versión nueva de Velora:** sube `<Version>` en `src/Velora.Pdf/Velora.Pdf.csproj` y `src/Velora.App/Velora.App.csproj`,

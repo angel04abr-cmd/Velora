@@ -56,5 +56,6 @@ internal static class AppCommands
     public static readonly RoutedUICommand Exit = Make("Salir", nameof(Exit));
     public static readonly RoutedUICommand Manual = Make("Manual de uso", nameof(Manual));
     public static readonly RoutedUICommand CheckUpdates = Make("Buscar actualizaciones…", nameof(CheckUpdates));
+    public static readonly RoutedUICommand AutoUpdates = Make("Buscar actualizaciones automáticamente", nameof(AutoUpdates));
     public static readonly RoutedUICommand OpenFolder = Make("Mostrar el archivo en el Explorador", nameof(OpenFolder));
 }

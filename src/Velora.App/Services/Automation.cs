@@ -167,6 +167,20 @@ internal sealed class Automation
             case "pagina-siguiente": V.GoToNextPage(); Log($"página siguiente → {V.CurrentPage + 1} (puede ir atrás: {V.CanGoPrevious}, adelante: {V.CanGoNext})"); break;
             case "pagina-anterior": V.GoToPreviousPage(); Log($"página anterior → {V.CurrentPage + 1} (puede ir atrás: {V.CanGoPrevious}, adelante: {V.CanGoNext})"); break;
             case "zonas": await HitZonesAsync(); break;
+            case "actualizar-comprobar":
+                {
+                    var info = await UpdateService.CheckAsync();
+                    Log(info == null ? $"actualización: ya se tiene la última (actual {UpdateService.CurrentVersion})" : $"actualización: disponible {info.Version} ({info.ZipName}, {info.ZipSize / 1048576.0:0.0} MB, huella: {(info.HashUrl != null ? "sí" : "NO")}); se instala en el sitio: {UpdateService.CanInstallInPlace}");
+                    break;
+                }
+            case "actualizar-aplicar":
+                {
+                    var info = await UpdateService.CheckAsync() ?? throw new InvalidOperationException("no hay versión nueva");
+                    Log($"actualización: aplicando {info.Version}…");
+                    await _w.ApplyUpdateAsync(info);
+                    await Task.Delay(30000); // la ventana se cierra sola al lanzar el instalador
+                    break;
+                }
             case "maximizar": _w.WindowState = WindowState.Maximized; await Task.Delay(500); LogWindowRects("maximizada"); break;
             case "restaurar": _w.WindowState = WindowState.Normal; await Task.Delay(500); LogWindowRects("restaurada"); break;
             case "salir": Application.Current.Shutdown(0); break;

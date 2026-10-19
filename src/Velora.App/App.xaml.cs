@@ -105,7 +105,15 @@ public partial class App : Application
             if (args.Log != null) Automation.Log(args, $"abrir: {sw.ElapsedMilliseconds} ms hasta tener el documento abierto");
         }
 
+        if (args.Updated != null) window.ShowUpdated(args.Updated);
+        UpdateService.CleanOldDownloads();
         if (args.Auto != null) await new Automation(window, args).RunAsync();
+        else if (!args.Silent)
+        {
+            // Comprobación automática de actualizaciones, un poco después de arrancar para no retrasar la apertura.
+            await Task.Delay(3000);
+            await window.CheckForUpdatesAsync(manual: false);
+        }
     }
 }
 
@@ -119,6 +127,7 @@ public sealed class LaunchArgs
     public string? Log;
     public string? DataDir;
     public string? Password;
+    public string? Updated;
     public bool Silent;
     public bool Keep;
     public Size? Size;
@@ -137,6 +146,7 @@ public sealed class LaunchArgs
                 case "--registro": a.Log = Next(); break;
                 case "--datos": a.DataDir = Next(); break;
                 case "--clave": a.Password = Next(); break;
+                case "--actualizado": a.Updated = Next(); break;
                 case "--pagina": if (int.TryParse(Next(), out int p)) a.Page = p; break;
                 case "--silencioso": a.Silent = true; break;
                 case "--mantener": a.Keep = true; break;
