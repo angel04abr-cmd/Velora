@@ -48,6 +48,15 @@ public sealed unsafe class PdfDocument : IDisposable
     /// </summary>
     internal static long RecycleBytes = 256L << 20;
 
+    /// <summary>
+    /// La estimación por tamaño de archivo se queda corta en libros escaneados (cada página leída retiene mucho más de lo que pesa en el archivo):
+    /// además se mira cuánto ha crecido de verdad la memoria del proceso desde la última vez que se soltó.
+    /// </summary>
+    internal static long GrowthBytes => RecycleBytes + (128L << 20);
+
+    private long _memBaseline;
+    private int _memCheckedAt;
+
     private PdfDocument(string path, long fileSize)
     {
         Path = path;
@@ -206,8 +215,22 @@ public sealed unsafe class PdfDocument : IDisposable
     private void MaybeRecycle()
     {
         if (_closed || _modified || _doc == 0) return;
-        if (_touched.Count * _avgPageBytes * 13 / 10 < RecycleBytes) return;
-        RecycleCore();
+        if (_touched.Count * _avgPageBytes * 13 / 10 >= RecycleBytes)
+        {
+            RecycleCore();
+            return;
+        }
+
+        if (_touched.Count - _memCheckedAt < 8) return;
+        _memCheckedAt = _touched.Count;
+        if (_memBaseline == 0) _memBaseline = PrivateBytes();
+        else if (PrivateBytes() - _memBaseline > GrowthBytes) RecycleCore();
+    }
+
+    private static long PrivateBytes()
+    {
+        using var p = System.Diagnostics.Process.GetCurrentProcess();
+        return p.PrivateMemorySize64;
     }
 
     private void RecycleCore()
@@ -215,6 +238,7 @@ public sealed unsafe class PdfDocument : IDisposable
         foreach (var e in _pages.Values) ClosePage(e);
         _pages.Clear();
         _touched.Clear();
+        _memCheckedAt = 0;
         Pdfium.FPDF_CloseDocument(_doc);
         _doc = 0;
         nint d;
@@ -222,6 +246,7 @@ public sealed unsafe class PdfDocument : IDisposable
         else fixed (byte* p = _passwordBytes) d = Pdfium.FPDF_LoadCustomDocument(_access, p);
         if (d == 0) throw new PdfException("No se pudo volver a abrir el documento.");
         _doc = d;
+        _memBaseline = PrivateBytes();
         Recycles++;
     }
 
