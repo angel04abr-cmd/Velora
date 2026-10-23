@@ -467,13 +467,51 @@ public partial class MainWindow : Window
         _settings.Save();
     }
 
+    /// <summary>
+    /// Guarda al cerrar la ventana. Hay que cerrar primero el documento: PDFium mantiene el archivo abierto y Windows no deja
+    /// reemplazarlo. Si aun así no se puede reemplazar, los cambios se guardan con otro nombre; nunca se pierden.
+    /// </summary>
     private void SaveBlocking()
     {
         var doc = _doc!;
-        string tmp = doc.Path + ".velora-tmp";
-        doc.SaveCopyAsync(tmp).GetAwaiter().GetResult();
-        File.Move(tmp, doc.Path, overwrite: true);
-        doc.MarkSaved();
+        string path = doc.Path;
+        string tmp = path + ".velora-tmp";
+        try
+        {
+            doc.SaveCopyAsync(tmp).GetAwaiter().GetResult();
+        }
+        catch
+        {
+            DeleteQuietly(tmp);
+            throw;
+        }
+
+        // A partir de aquí la ventana se cierra pase lo que pase: el documento ya no se puede seguir usando.
+        doc.CloseAsync().GetAwaiter().GetResult();
+        try
+        {
+            File.Move(tmp, path, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            string alt = AlternatePath(path);
+            File.Move(tmp, alt);
+            Error(string.Format(T.ReplaceFailed, alt));
+        }
+        finally
+        {
+            doc.MarkSaved(); // el documento ya está cerrado: si falla algo, que el siguiente intento de cerrar no vuelva a preguntar
+        }
+    }
+
+    /// <summary>Nombre libre «X (con anotaciones).pdf» en la misma carpeta, para cuando no se puede reemplazar el original.</summary>
+    private static string AlternatePath(string path)
+    {
+        string dir = Path.GetDirectoryName(path) ?? "";
+        string name = Path.GetFileNameWithoutExtension(path);
+        string alt = Path.Combine(dir, name + " (con anotaciones).pdf");
+        for (int i = 2; File.Exists(alt); i++) alt = Path.Combine(dir, $"{name} (con anotaciones {i}).pdf");
+        return alt;
     }
 
     // ================================================================== guardar e imprimir
@@ -515,9 +553,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                string dir = Path.GetDirectoryName(path) ?? "";
-                string alt = Path.Combine(dir, Path.GetFileNameWithoutExtension(path) + " (con anotaciones).pdf");
-                for (int i = 2; File.Exists(alt); i++) alt = Path.Combine(dir, $"{Path.GetFileNameWithoutExtension(path)} (con anotaciones {i}).pdf");
+                string alt = AlternatePath(path);
                 File.Move(tmp, alt);
                 target = alt;
                 note = string.Format(T.ReplaceFailed, alt);
@@ -733,7 +769,7 @@ public partial class MainWindow : Window
 
     // ---- Alt: la ventana maximizada y el botón de maximizar con el menú de ajuste de Windows 11 ----
 
-    private const int WmNcHitTest = 0x0084, WmNcMouseMove = 0x00A0, WmNcLButtonDown = 0x00A1, WmNcLButtonUp = 0x00A2, WmNcMouseLeave = 0x02A2, HtMaxButton = 9;
+    private const int WmSize = 0x0005, SizeMaximized = 2, WmNcHitTest = 0x0084, WmNcMouseMove = 0x00A0, WmNcLButtonDown = 0x00A1, WmNcLButtonUp = 0x00A2, WmNcMouseLeave = 0x02A2, HtMaxButton = 9;
 
     protected override void OnSourceInitialized(EventArgs e)
     {
@@ -762,6 +798,10 @@ public partial class MainWindow : Window
                 }
             case WmNcMouseLeave:
                 MaxButton.Tag = null;
+                break;
+            case WmSize when wParam.ToInt32() == SizeMaximized && !_fullScreen:
+                // Windows ya dio su tamaño final a la ventana: se compensa lo que se sale por los bordes (el aviso de cambio de estado de WPF llega a veces antes).
+                Dispatcher.BeginInvoke(ApplyMaximizedMargin, DispatcherPriority.Normal);
                 break;
             case WmNcLButtonDown when wParam.ToInt32() == HtMaxButton:
                 handled = true; // el clic se completa al soltar
