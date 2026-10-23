@@ -7,6 +7,13 @@
   Si tienes una de esas versiones, desinstálala antes (el instalador te avisa).
 - Las actualizaciones automáticas ahora descargan y ejecutan el .msi (Windows pide permiso de administrador) y comprueban su huella SHA-256.
 - Pruebas automáticas del instalador (instalar, arrancar, desinstalar y actualizar) en un Windows limpio de GitHub, y 15 pruebas nuevas del sistema de actualizaciones.
+- **Cabecera**: el texto de los menús (Archivo, Ver…) ya no sale cortado por abajo y los botones de minimizar, maximizar y cerrar se ven bien en el tema oscuro.
+  Con la ventana estrecha los menús siguen recogiéndose en un solo botón ☰.
+- **Guardar al cerrar**: si cerrabas la ventana con anotaciones sin guardar y elegías «Guardar», Windows podía negarse a reemplazar el archivo (PDFium lo mantenía abierto) y
+  no se podía cerrar con comodidad. Ahora se cierra el documento antes de reemplazarlo y, si aun así no se puede, se guarda con otro nombre: nunca se pierden las anotaciones.
+- **Ventana maximizada**: a veces la cabecera quedaba unos píxeles fuera de la pantalla (los botones de la ventana cortados por el borde); ahora siempre queda ajustada.
+- **Libros muy grandes** (miles de páginas escaneadas): la memoria crecía sin límite al recorrerlos. Ahora Velora también mira cuánto ha crecido de verdad y suelta lo que no usa.
+- Pruebas nuevas del guardado (reemplazar el original, guardar varias veces seguidas, archivo de solo lectura).
 
 ## [1.0.2] - 2026-10-19
 
