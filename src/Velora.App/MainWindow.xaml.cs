@@ -77,7 +77,7 @@ public partial class MainWindow : Window
     }
 
     internal PdfView ViewControl => View;
-    internal FrameworkElement MenuMainForTest => MainMenu.Visibility == Visibility.Visible ? MainMenu : CompactMenu;
+    internal FrameworkElement MenuMainForTest => MainMenu.Visibility == Visibility.Visible ? MainMenu : MenuHamburger;
     internal FrameworkElement HeaderTitleForTest => HeaderTitle;
     internal FrameworkElement HeaderBarForTest => HeaderBar;
     internal PdfDocument? CurrentDocument => _doc;

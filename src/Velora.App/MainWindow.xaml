@@ -17,6 +17,7 @@
             <Setter Property="Height" Value="44" />
             <Setter Property="Focusable" Value="False" />
             <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -62,7 +63,6 @@
             </Setter>
         </Style>
 
-        <Style x:Key="HeaderMenuItem" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" />
 
         <Style x:Key="NavItem" TargetType="ListBoxItem">
             <Setter Property="Padding" Value="4" />
@@ -208,18 +208,13 @@
 
                 <StackPanel x:Name="HeaderLeft" Orientation="Horizontal">
                     <Image Source="/Assets/app.png" Width="20" Height="20" Margin="14,0,8,0" RenderOptions.BitmapScalingMode="HighQuality" />
-                    <!-- Los elementos del menú se crean desde el código (MainWindow.Menus.cs) para poder recogerlos en un solo botón -->
-                    <Menu x:Name="MainMenu" Background="Transparent" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True"
-                          MenuItem.SubmenuOpened="OnMenuOpened" />
-                    <!-- Con la ventana estrecha, todo el menú se recoge en un solo botón -->
-                    <Menu x:Name="CompactMenu" Visibility="Collapsed" Background="Transparent" VerticalAlignment="Center"
-                          WindowChrome.IsHitTestVisibleInChrome="True" MenuItem.SubmenuOpened="OnMenuOpened">
-                        <MenuItem x:Name="MenuHamburger" ToolTip="Menú">
-                            <MenuItem.Header>
-                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE700;" />
-                            </MenuItem.Header>
-                        </MenuItem>
-                    </Menu>
+                    <!-- El menú se crea desde el código (MainWindow.Menus.cs): botones de texto que abren menús desplegables, o un solo botón ☰ si falta sitio.
+                         (El control Menu de WPF dibuja el texto cortado dentro de una barra de título propia, por eso no se usa.) -->
+                    <StackPanel x:Name="MainMenu" Orientation="Horizontal" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True" />
+                    <Button x:Name="MenuHamburger" Style="{StaticResource IconButton}" Visibility="Collapsed" ToolTip="Menú"
+                            WindowChrome.IsHitTestVisibleInChrome="True" Click="OnHamburgerClick">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE700;" />
+                    </Button>
                 </StackPanel>
 
                 <TextBlock x:Name="HeaderTitle" Grid.Column="1" VerticalAlignment="Center" Margin="12,0" Opacity="0.75"

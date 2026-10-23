@@ -58,20 +58,63 @@ public partial class MainWindow
         ];
     }
 
-    /// <summary>Coloca el menú completo en la barra, o recogido en un solo botón (☰) cuando falta espacio.</summary>
+    private ContextMenu? _compactMenu;
+
+    /// <summary>
+    /// Coloca el menú completo en la barra (un botón de texto por cada menú: Archivo, Ver…), o recogido en un solo botón (☰) cuando falta sitio.
+    /// Cada vez se crean elementos nuevos, porque WPF no permite pasar un elemento de un menú a otro.
+    /// </summary>
     private void BuildMenus(bool compact)
     {
-        MainMenu.Items.Clear();
-        MenuHamburger.Items.Clear();
-        foreach (var item in CreateMenuItems()) (compact ? (ItemsControl)MenuHamburger : MainMenu).Items.Add(item);
+        MainMenu.Children.Clear();
+        _compactMenu = null;
+        var tops = CreateMenuItems();
+        if (compact)
+        {
+            _compactMenu = new ContextMenu { PlacementTarget = MenuHamburger, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+            _compactMenu.Opened += OnMenuOpened;
+            foreach (var top in tops) _compactMenu.Items.Add(top);
+        }
+        else
+        {
+            foreach (var top in tops)
+            {
+                var button = new Button
+                {
+                    Content = new AccessText { Text = (string)top.Header },
+                    Style = (Style)FindResource("IconButton"),
+                    Padding = new Thickness(12, 0, 12, 0),
+                    MinWidth = 0,
+                    Height = 34,
+                    Focusable = false,
+                };
+                var menu = new ContextMenu { PlacementTarget = button, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+                foreach (var item in top.Items.Cast<object>().ToList())
+                {
+                    top.Items.Remove(item);
+                    menu.Items.Add(item);
+                }
+
+                menu.Opened += OnMenuOpened;
+                button.Tag = menu;
+                button.Click += (_, _) => menu.IsOpen = true;
+                MainMenu.Children.Add(button);
+            }
+        }
+
         MainMenu.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
-        CompactMenu.Visibility = compact ? Visibility.Visible : Visibility.Collapsed;
+        MenuHamburger.Visibility = compact ? Visibility.Visible : Visibility.Collapsed;
         _menuCollapsed = compact;
+    }
+
+    private void OnHamburgerClick(object sender, RoutedEventArgs e)
+    {
+        if (_compactMenu != null) _compactMenu.IsOpen = true;
     }
 
     private void SetMenuCollapsed(bool collapsed)
     {
-        if (collapsed == _menuCollapsed && (MainMenu.Items.Count > 0 || MenuHamburger.Items.Count > 0)) return;
+        if (collapsed == _menuCollapsed && (MainMenu.Children.Count > 0 || _compactMenu != null)) return;
         BuildMenus(collapsed);
     }
 

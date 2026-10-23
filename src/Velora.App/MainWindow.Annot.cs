@@ -188,6 +188,20 @@ public partial class MainWindow
     // ---- órdenes para las pruebas automáticas ----
     internal async Task AutoMarkupAsync(MarkupKind kind) => await ApplyMarkupAsync(kind);
 
+    /// <summary>Prueba: abre un menú de la cabecera (índice 0..4; con el menú recogido, el del ☰) y devuelve cuántos elementos tiene y si se abrió.</summary>
+    internal async Task<string> AutoOpenMenuAsync(int index)
+    {
+        ContextMenu? menu;
+        if (_menuCollapsed) menu = _compactMenu;
+        else menu = (MainMenu.Children[index] as Button)?.Tag as ContextMenu;
+        if (menu == null) return "sin menú";
+        menu.IsOpen = true;
+        await Task.Delay(300);
+        string r = $"abierto={menu.IsOpen}, elementos={menu.Items.Count}, recogido={_menuCollapsed}, marcados={menu.Items.OfType<MenuItem>().Count(m => m.IsChecked)}";
+        menu.IsOpen = false;
+        return r;
+    }
+
     internal void AutoSidebar(string what)
     {
         if (what == "ocultar") { _settings.SidebarVisible = false; ApplySidebar(); return; }
