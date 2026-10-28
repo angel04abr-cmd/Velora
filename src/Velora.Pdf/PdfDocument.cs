@@ -235,6 +235,7 @@ public sealed unsafe class PdfDocument : IDisposable
 
     private void RecycleCore()
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         foreach (var e in _pages.Values) ClosePage(e);
         _pages.Clear();
         _touched.Clear();
@@ -248,10 +249,17 @@ public sealed unsafe class PdfDocument : IDisposable
         _doc = d;
         _memBaseline = PrivateBytes();
         Recycles++;
+        LastRecycleMs = sw.ElapsedMilliseconds;
+        TotalRecycleMs += LastRecycleMs;
     }
 
     /// <summary>Veces que se ha vuelto a abrir el documento para liberar memoria (diagnóstico).</summary>
     public int Recycles { get; private set; }
+
+    /// <summary>Lo que tardó (ms) la última reapertura y el total (diagnóstico: durante ese tiempo no se dibuja nada).</summary>
+    public long LastRecycleMs { get; private set; }
+
+    public long TotalRecycleMs { get; private set; }
 
     private void ThrowIfClosed()
     {
