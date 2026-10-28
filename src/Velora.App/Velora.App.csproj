@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Velora.App</RootNamespace>
     <AssemblyName>Velora</AssemblyName>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <TieredPGO>false</TieredPGO>

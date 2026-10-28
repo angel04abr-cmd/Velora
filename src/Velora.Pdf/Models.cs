@@ -72,6 +72,15 @@ public readonly record struct TileRequest(
     public long ByteSize => (long)Width * Height * 4;
 }
 
+/// <summary>
+/// Reserva de memoria para los píxeles de las baldosas. El reparto compartido de .NET llega a guardar cientos de megas de buffers grandes
+/// al desplazarse muy rápido; este es propio y limitado (pocos buffers por tamaño, ninguno por encima de 32 MB).
+/// </summary>
+internal static class PixelPool
+{
+    public static readonly System.Buffers.ArrayPool<byte> Instance = System.Buffers.ArrayPool<byte>.Create(32 << 20, 3);
+}
+
 /// <summary>Píxeles BGRA (opacos, ya con el fondo blanco) de una baldosa. Devolver con Dispose para reutilizar la memoria.</summary>
 public sealed class RenderedTile : IDisposable
 {
@@ -92,7 +101,7 @@ public sealed class RenderedTile : IDisposable
     public void Dispose()
     {
         var p = Interlocked.Exchange(ref _pixels, null);
-        if (p != null) System.Buffers.ArrayPool<byte>.Shared.Return(p);
+        if (p != null) PixelPool.Instance.Return(p);
     }
 }
 

@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## [1.0.4] - 2026-10-28
+
+- **Desplazamiento rápido en libros grandes**: al arrastrar la barra o girar la rueda muy deprisa por un libro de miles de páginas, las páginas y las miniaturas se quedaban en blanco
+  y a veces ya no cargaban. Ahora se ve al instante un borrador borroso de cada página y la calidad completa llega al detenerte.
+- Velora ya no se pone a leer el texto de miles de páginas que pasaste de largo (se acumulaba una cola de trabajo que dejaba las páginas visibles esperando).
+- Menos memoria: tras desplazarse a toda velocidad por un libro de 8000 páginas el uso bajó de casi 3 GB a menos de 1 GB (se limitó la reserva de memoria para dibujar las páginas).
+
 ## [1.0.3] - 2026-10-20
 
 - **Instalador normal de Windows (.msi)**: Velora se instala en `C:\Program Files\Velora`, aparece en *Configuración → Aplicaciones → Aplicaciones instaladas* y se

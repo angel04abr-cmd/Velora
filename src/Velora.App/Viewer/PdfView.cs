@@ -85,6 +85,7 @@ public sealed class PdfView : FrameworkElement, IScrollInfo
     private readonly Dictionary<int, int> _rev = new();
     private readonly Dictionary<int, PageContent> _contents = new();
     private readonly Dictionary<int, Task<PageContent>> _contentTasks = new();
+    private readonly Dictionary<int, CancellationTokenSource> _contentCts = new();
     // Lo que falló no se vuelve a pedir en cada cuadro (una página dañada provocaría un bucle de errores).
     private readonly HashSet<TileKey> _failedTiles = new();
     private readonly HashSet<int> _failedContent = new();
@@ -234,6 +235,7 @@ public sealed class PdfView : FrameworkElement, IScrollInfo
         _rev.Clear();
         _contents.Clear();
         _contentTasks.Clear();
+        _contentCts.Clear();
         _failedTiles.Clear();
         _failedContent.Clear();
         _anchor = _focus = null;
@@ -421,6 +423,7 @@ public sealed class PdfView : FrameworkElement, IScrollInfo
         ClampOffsets();
         if (stopAnimation) _targetY = _offY;
         if (ox == _offX && oy == _offY) return;
+        NoteScrollSpeed(Math.Abs(_offY - oy));
         ScrollOwner?.InvalidateScrollInfo();
         AfterViewChange();
         ViewScrolled?.Invoke(this, EventArgs.Empty);
@@ -570,6 +573,44 @@ public sealed class PdfView : FrameworkElement, IScrollInfo
 
     private int Rev(int page) => _rev.GetValueOrDefault(page);
 
+    // ---- desplazamiento rápido: primero un borrador, la calidad completa cuando se detiene ----
+
+    private DispatcherTimer? _settleTimer;
+    private long _speedTick;
+    private double _speed; // píxeles de pantalla por segundo (media suavizada)
+
+    /// <summary>Mientras el desplazamiento es muy rápido solo se piden borradores baratos de las páginas; la calidad completa se pide al detenerse.</summary>
+    private bool FastScrolling => _speed > Math.Max(1500, _viewport.Height * 2.5);
+
+    private void NoteScrollSpeed(double delta)
+    {
+        long now = Environment.TickCount64;
+        double dt = Math.Max(1, now - _speedTick) / 1000.0;
+        _speedTick = now;
+        _speed = dt > 0.25 ? delta / dt : _speed * 0.6 + (delta / dt) * 0.4;
+        if (!FastScrolling) return;
+        _settleTimer ??= new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(140) };
+        _settleTimer.Tick -= OnSettle;
+        _settleTimer.Tick += OnSettle;
+        _settleTimer.Stop();
+        _settleTimer.Start();
+    }
+
+    private void OnSettle(object? sender, EventArgs e)
+    {
+        _settleTimer?.Stop();
+        _speed = 0;
+        UpdateWork();
+        InvalidateVisual();
+    }
+
+    /// <summary>Una página entera a muy poca resolución (unos 360 px de ancho como máximo): se ve borrosa pero al instante.</summary>
+    private static (int W, int H) DraftSize(int pw, int ph)
+    {
+        int w = Math.Clamp(pw / 4, 48, 360);
+        return (w, Math.Max(1, (int)Math.Round((double)ph * w / pw)));
+    }
+
     private int PxW(int page) => Math.Max(1, (int)Math.Round(_layout!.Width(page) * _dpi));
     private int PxH(int page) => Math.Max(1, (int)Math.Round(_layout!.Height(page) * _dpi));
 
@@ -592,6 +633,7 @@ public sealed class PdfView : FrameworkElement, IScrollInfo
         var (first, last) = _layout.PagesIn(_offY, _offY + _viewport.Height);
         var wanted = new Dictionary<TileKey, (PdfPriority Prio, int Sub, TileRequest Req)>();
         double mid = _offY + _viewport.Height / 2;
+        bool fast = FastScrolling;
 
         for (int p = first; p <= last; p++)
         {
@@ -599,12 +641,26 @@ public sealed class PdfView : FrameworkElement, IScrollInfo
             if (r.Right < 0 || r.X > _viewport.Width) continue;
             int pw = PxW(p), ph = PxH(p);
             int sub = (int)Math.Abs(_layout.Y(p) + _layout.Height(p) / 2 - mid) / 8;
-            foreach (var t in VisibleTiles(r, pw, ph))
-                wanted[KeyFor(p, pw, ph, t)] = (PdfPriority.Urgente, sub, new TileRequest(p, pw, ph, _rot, t.X, t.Y, t.Width, t.Height));
+            var visible = VisibleTiles(r, pw, ph).ToList();
+            bool complete = true;
+            foreach (var t in visible)
+            {
+                var key = KeyFor(p, pw, ph, t);
+                if (!_cache.TryGet(key, out _)) complete = false;
+                if (!fast) wanted[key] = (PdfPriority.Urgente, sub, new TileRequest(p, pw, ph, _rot, t.X, t.Y, t.Width, t.Height));
+            }
+
+            // Borrador: lo primero que se dibuja de una página que aún no tiene su imagen completa
+            if (!complete && pw > 96)
+            {
+                var (dw, dh) = DraftSize(pw, ph);
+                var dkey = new TileKey(p, dw, dh, _rot, -1, -1, Rev(p));
+                wanted[dkey] = (PdfPriority.Urgente, sub - 1_000_000, new TileRequest(p, dw, dh, _rot, 0, 0, dw, dh));
+            }
         }
 
         // Páginas cercanas, para tenerlas listas (solo las que caben en una baldosa).
-        for (int d = 1; d <= Math.Max(PrefetchBefore, PrefetchAfter); d++)
+        for (int d = 1; !fast && d <= Math.Max(PrefetchBefore, PrefetchAfter); d++)
         {
             foreach (int p in new[] { first - d, last + d })
             {
@@ -650,14 +706,17 @@ public sealed class PdfView : FrameworkElement, IScrollInfo
 
     private void PruneContents(int first, int last)
     {
-        if (_contents.Count <= 48) return;
+        // Las lecturas de texto de páginas que ya se dejaron atrás se cancelan: al desplazarse muy rápido se acumulaban miles
+        // y el trabajador de PDFium se pasaba minutos con páginas que ya no se ven, dejando las visibles en blanco.
+        if (_contentTasks.Count <= 12 && _contents.Count <= 48) return;
         var sel = OrderedSelection();
-        foreach (int p in _contents.Keys.ToList())
+        foreach (int p in _contentTasks.Keys.Union(_contents.Keys).ToList())
         {
             if (p >= first - 6 && p <= last + 6) continue;
             if (sel is { } s && p >= s.A.Page && p <= s.B.Page) continue;
             _contents.Remove(p);
             _contentTasks.Remove(p);
+            if (_contentCts.Remove(p, out var cts)) cts.Cancel();
         }
     }
 
@@ -811,7 +870,9 @@ public sealed class PdfView : FrameworkElement, IScrollInfo
     private Task<PageContent> GetContentAsync(int page, PdfPriority prio = PdfPriority.Urgente)
     {
         if (_contentTasks.TryGetValue(page, out var t)) return t;
-        t = LoadContentAsync(_doc!, page, prio, _generation, _lifetime.Token);
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _contentCts[page] = cts;
+        t = LoadContentAsync(_doc!, page, prio, _generation, cts.Token);
         _contentTasks[page] = t;
         return t;
     }
@@ -895,8 +956,14 @@ public sealed class PdfView : FrameworkElement, IScrollInfo
 
         if (missing && _previews.TryGetValue(p, out var pv) && pv.Rot == _rot)
         {
-            foreach (var item in pv.Tiles.Values)
+            if (pv.Tiles.TryGetValue((-1, -1), out var draft))
+                dc.DrawImage(draft.Bmp.Bmp, new Rect(r.X, r.Y, r.Width, r.Height));
+            foreach (var kv in pv.Tiles)
+            {
+                if (kv.Key == (-1, -1)) continue;
+                var item = kv.Value;
                 dc.DrawImage(item.Bmp.Bmp, new Rect(r.X + item.X0 * r.Width, r.Y + item.Y0 * r.Height, (item.X1 - item.X0) * r.Width, (item.Y1 - item.Y0) * r.Height));
+            }
         }
 
         foreach (var (t, b) in found)
@@ -1220,6 +1287,8 @@ public sealed class PdfView : FrameworkElement, IScrollInfo
     internal (double Width, double Height) ViewportSize => (_viewport.Width, _viewport.Height);
 
     internal string DebugPress => $"enlace={_pressLink != null}, nota={_pressAnnot != null}, arrastre={_drag}, página={_pressPage}";
+
+    internal int ContentJobs => _contentTasks.Count;
 
     internal PageContent? ContentOf(int page) => _contents.GetValueOrDefault(page);
 

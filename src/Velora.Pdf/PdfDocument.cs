@@ -378,7 +378,7 @@ public sealed unsafe class PdfDocument : IDisposable
         var e = GetPage(r.Page);
         int w = r.Width, h = r.Height;
         if (w <= 0 || h <= 0 || (long)w * h > 120_000_000) throw new ArgumentException("Tamaño de baldosa no válido.");
-        byte[] buf = ArrayPool<byte>.Shared.Rent(w * h * 4);
+        byte[] buf = PixelPool.Instance.Rent(w * h * 4);
         try
         {
             fixed (byte* p = buf)
@@ -393,7 +393,7 @@ public sealed unsafe class PdfDocument : IDisposable
         }
         catch
         {
-            ArrayPool<byte>.Shared.Return(buf);
+            PixelPool.Instance.Return(buf);
             throw;
         }
 

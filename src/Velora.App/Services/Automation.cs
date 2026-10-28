@@ -194,7 +194,7 @@ internal sealed class Automation
     {
         var (pending, tiles, bytes) = V.Stats;
         Log($"render tier {System.Windows.Media.RenderCapability.Tier >> 16}");
-        Log($"info: página {V.CurrentPage + 1}/{V.PageCount}, zoom {V.Zoom:P0}, giro {V.Rotation * 90}°, columnas {V.Columns}, baldosas en caché {tiles} ({bytes / 1048576.0:0.0} MB), pendientes {pending}, reaperturas de PDFium {V.Document?.Recycles} (última {V.Document?.LastRecycleMs} ms, total {V.Document?.TotalRecycleMs} ms), memoria del proceso {Process.GetCurrentProcess().WorkingSet64 / 1048576} MB, privada {Process.GetCurrentProcess().PrivateMemorySize64 / 1048576} MB, montón .NET {GC.GetTotalMemory(false) / 1048576} MB");
+        Log($"info: página {V.CurrentPage + 1}/{V.PageCount}, zoom {V.Zoom:P0}, giro {V.Rotation * 90}°, columnas {V.Columns}, baldosas en caché {tiles} ({bytes / 1048576.0:0.0} MB), pendientes {pending} (cola de PDFium {Velora.Pdf.PdfWorker.Shared.Pending}, lecturas de texto {V.ContentJobs}), reaperturas de PDFium {V.Document?.Recycles} (última {V.Document?.LastRecycleMs} ms, total {V.Document?.TotalRecycleMs} ms), memoria del proceso {Process.GetCurrentProcess().WorkingSet64 / 1048576} MB, privada {Process.GetCurrentProcess().PrivateMemorySize64 / 1048576} MB, montón .NET {GC.GetTotalMemory(false) / 1048576} MB");
     }
 
     private async Task<long> WaitReadyAsync(int timeoutMs = 20000)
