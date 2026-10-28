@@ -292,6 +292,7 @@ public sealed unsafe class PdfDocument : IDisposable
             long min = long.MaxValue;
             foreach (var kv in _pages)
             {
+                if (kv.Key == _pinnedPage) continue;
                 if (kv.Value.Tick < min)
                 {
                     min = kv.Value.Tick;
@@ -405,9 +406,25 @@ public sealed unsafe class PdfDocument : IDisposable
     public Task<PageContent> GetPageContentAsync(int page, PdfPriority priority, CancellationToken ct = default, int sub = 0) =>
         Job(priority, () => GetPageContentCore(page), ct, sub);
 
+    /// <summary>Página que se está leyendo: no se puede cerrar para hacer sitio mientras se abren las de destino de sus enlaces.</summary>
+    private int _pinnedPage = -1;
+
     private PageContent GetPageContentCore(int page)
     {
         var e = GetPage(page);
+        _pinnedPage = page;
+        try
+        {
+            return ReadPageContent(page, e);
+        }
+        finally
+        {
+            _pinnedPage = -1;
+        }
+    }
+
+    private PageContent ReadPageContent(int page, PageEntry e)
+    {
         nint tp = GetText(e);
         int n = tp != 0 ? Pdfium.FPDFText_CountChars(tp) : 0;
         var chars = new int[n];
@@ -432,6 +449,53 @@ public sealed unsafe class PdfDocument : IDisposable
 
         return new PageContent(page, e.Width, e.Height, chars, boxes, links.ToArray(), ReadAnnotations(e));
     }
+
+    /// <summary>Diagnóstico: qué tipos de enlaces y acciones hay de verdad en una página y cuántos reconoce Velora.</summary>
+    public Task<string> DiagnoseLinksAsync(int page) =>
+        Job(PdfPriority.Interactivo, () =>
+        {
+            var e = GetPage(page);
+            _pinnedPage = page;
+            var sb = new System.Text.StringBuilder();
+            int n = Pdfium.FPDFPage_GetAnnotCount(e.Page);
+            var subtypes = new SortedDictionary<int, int>();
+            var actions = new SortedDictionary<string, int>();
+            for (int i = 0; i < n; i++)
+            {
+                nint a = Pdfium.FPDFPage_GetAnnot(e.Page, i);
+                if (a == 0) continue;
+                int st = Pdfium.FPDFAnnot_GetSubtype(a);
+                subtypes[st] = subtypes.GetValueOrDefault(st) + 1;
+                Pdfium.FPDFPage_CloseAnnot(a);
+            }
+
+            int pos = 0, total = 0;
+            nint link;
+            while (Pdfium.FPDFLink_Enumerate(e.Page, &pos, &link) != 0)
+            {
+                total++;
+                nint action = Pdfium.FPDFLink_GetAction(link);
+                string key = action != 0 ? "acción " + Pdfium.FPDFAction_GetType(action) : (Pdfium.FPDFLink_GetDest(_doc, link) != 0 ? "destino directo" : "sin acción ni destino");
+                actions[key] = actions.GetValueOrDefault(key) + 1;
+            }
+
+            pos = 0;
+            int k = 0;
+            while (Pdfium.FPDFLink_Enumerate(e.Page, &pos, &link) != 0)
+            {
+                nint d = Pdfium.FPDFLink_GetDest(_doc, link);
+                int ti = d != 0 ? Pdfium.FPDFDest_GetDestPageIndex(_doc, d) : -99;
+                FsRectF rc;
+                int okr = Pdfium.FPDFLink_GetAnnotRect(link, &rc);
+                sb.AppendLine($"   enlace {++k}: rect={(okr != 0 ? $"{rc.Left:0},{rc.Bottom:0},{rc.Right:0},{rc.Top:0}" : "sin rect")} destino={(d != 0)} página destino={ti}");
+            }
+
+            var links = new List<PageLink>();
+            ReadLinkAnnotations(e, links);
+            sb.Append($"página {page + 1}: anotaciones {n} (subtipos {string.Join(", ", subtypes.Select(k => k.Key + "×" + k.Value))}); enlaces enumerados {total} ({string.Join(", ", actions.Select(k => k.Key + "×" + k.Value))}); reconocidos {links.Count}");
+            _pinnedPage = -1;
+            return sb.ToString();
+        });
 
     private RectF PdfRectToPage(PageEntry e, double left, double bottom, double right, double top) =>
         e.ToPageSpace.Apply(new RectF((float)left, (float)Math.Min(bottom, top), (float)right, (float)Math.Max(bottom, top)));

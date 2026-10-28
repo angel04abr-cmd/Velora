@@ -182,6 +182,9 @@ internal sealed class Automation
                     await Task.Delay(30000); // la ventana se cierra sola al lanzar el instalador
                     break;
                 }
+            case "enlaces-diag":
+                foreach (int pg in arg.Split(',').Select(int.Parse)) Log(await V.Document!.DiagnoseLinksAsync(pg - 1));
+                break;
             case "menu": Log($"menú {arg}: {await _w.AutoOpenMenuAsync(int.Parse(arg))}"); break;
             case "maximizar": _w.WindowState = WindowState.Maximized; await Task.Delay(500); LogWindowRects("maximizada"); break;
             case "restaurar": _w.WindowState = WindowState.Normal; await Task.Delay(500); LogWindowRects("restaurada"); break;
