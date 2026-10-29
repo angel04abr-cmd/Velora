@@ -63,6 +63,7 @@ public partial class MainWindow : Window
         StateChanged += OnWindowStateChanged;
         BuildColorDots();
         HookView();
+        InitLinkPreview();
         UpdateColorSwatch();
         RefreshRecents();
         ApplySidebar();

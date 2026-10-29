@@ -182,6 +182,27 @@ internal sealed class Automation
                     await Task.Delay(30000); // la ventana se cierra sola al lanzar el instalador
                     break;
                 }
+            case "pasar-enlace":
+                {
+                    // Coloca el puntero (simulado) sobre el primer vínculo del tipo pedido y lo deja ahí.
+                    string[] parts = arg.Split(',');
+                    int startPage = parts.Length > 1 ? int.Parse(parts[1]) - 1 : V.CurrentPage;
+                    for (int p = startPage; p < V.PageCount; p++)
+                    {
+                        var pc = await V.EnsureContentAsync(p);
+                        var link = pc.Links.FirstOrDefault(l => parts[0] == "interno" ? l.Kind == LinkKind.Goto : l.Kind == LinkKind.Uri);
+                        if (link == null) continue;
+                        V.GoToPage(p);
+                        await WaitReadyAsync();
+                        var pt = V.ViewPointOf(p, (link.Rect.Left + link.Rect.Right) / 2, (link.Rect.Top + link.Rect.Bottom) / 2)!.Value;
+                        V.PointerMove(pt);
+                        Log($"puntero sobre un vínculo {parts[0]} de la página {p + 1}");
+                        break;
+                    }
+
+                    break;
+                }
+            case "captura-vista-previa": Log($"vista previa: {(_w.AutoSavePreview(arg) ? arg : "no hay ninguna abierta")}"); break;
             case "enlaces-diag":
                 foreach (int pg in arg.Split(',').Select(int.Parse)) Log(await V.Document!.DiagnoseLinksAsync(pg - 1));
                 break;

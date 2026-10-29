@@ -1233,23 +1233,43 @@ public sealed class PdfView : FrameworkElement, IScrollInfo
 
     private void UpdateCursor(Point pt)
     {
-        if (_layout == null) { Cursor = Cursors.Arrow; return; }
-        if (Tool != ViewTool.Select) { Cursor = Cursors.Cross; return; }
+        if (_layout == null) { Cursor = Cursors.Arrow; SetHoverLink(null, default); return; }
+        if (Tool != ViewTool.Select) { Cursor = Cursors.Cross; SetHoverLink(null, default); return; }
         var hit = HitTestPage(pt);
         Cursor = Cursors.Arrow;
-        if (hit is not { Inside: true } h) return;
-        if (!_contents.TryGetValue(h.Page, out var c)) return;
-        if (c.Links.Any(l => l.Rect.Contains(h.U, h.V)) ||
-            c.Annotations.Any(a => a.Kind is AnnotationKind.Nota or AnnotationKind.TextoLibre && a.Rect.Contains(h.U, h.V)))
+        if (hit is not { Inside: true } h || !_contents.TryGetValue(h.Page, out var c))
+        {
+            SetHoverLink(null, default);
+            return;
+        }
+
+        var link = c.Links.FirstOrDefault(l => l.Rect.Contains(h.U, h.V));
+        if (link != null || c.Annotations.Any(a => a.Kind is AnnotationKind.Nota or AnnotationKind.TextoLibre && a.Rect.Contains(h.U, h.V)))
             Cursor = Cursors.Hand;
         else if (TextMath.IsOverText(c, h.U, h.V))
             Cursor = Cursors.IBeam;
+
+        SetHoverLink(link, link == null ? default : ToView(h.Page, PageRect(h.Page), link.Rect));
+    }
+
+    /// <summary>El puntero entra en un vínculo o sale de él (con su rectángulo en la vista): la ventana principal enseña ahí la vista previa del destino.</summary>
+    public event EventHandler<LinkHoverEventArgs>? LinkHover;
+
+    private PageLink? _hoverLink;
+
+    private void SetHoverLink(PageLink? link, Rect viewRect)
+    {
+        if (ReferenceEquals(link, _hoverLink)) return;
+        _hoverLink = link;
+        LinkHover?.Invoke(this, new LinkHoverEventArgs(link, viewRect));
     }
 
     protected override void OnMouseLeave(MouseEventArgs e)
     {
         base.OnMouseLeave(e);
+        if (IgnoreRealPointer) return;
         if (_drag == Drag.None) Cursor = Cursors.Arrow;
+        SetHoverLink(null, default);
     }
 
     protected override void OnMouseWheel(MouseWheelEventArgs e)
