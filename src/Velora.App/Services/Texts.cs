@@ -23,6 +23,7 @@ internal static class T
 
     public const string Saved = "Cambios guardados.";
     public const string SavedCopy = "Copia guardada en «{0}».";
+    public const string SavingCopy = "Guardando la copia «{0}»…";
     public const string CopiedText = "Texto copiado.";
     public const string UnsavedTitle = "Cambios sin guardar";
     public const string UnsavedAsk = "«{0}» tiene anotaciones sin guardar.\n\n¿Quieres guardarlas antes de continuar?";

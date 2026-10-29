@@ -138,42 +138,46 @@ internal sealed class AboutDialog : DialogBase
         panel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 0, 10),
-            Text = "Velora es software libre: puedes usarlo, estudiarlo, modificarlo y compartirlo según los términos de la Licencia Pública General de GNU, versión 3 o posterior (GPL-3.0-or-later). Se distribuye sin ninguna garantía.",
-        });
-        panel.Children.Add(new TextBlock
-        {
-            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
             Opacity = 0.85,
-            FontSize = 12,
-            Margin = new Thickness(0, 0, 0, 14),
-            Text = "Créditos\n" +
-                   "• La arquitectura de visor rápido (dibujar solo lo visible, caché y cola de tareas con prioridades) y la terminología en español se inspiran en Papers, el visor de documentos de GNOME (GPL-2.0-or-later, © Proyecto GNOME y colaboradores). Velora es un programa independiente y no está afiliado a GNOME.\n" +
-                   "• Motor de PDF: PDFium (licencia BSD, © Los autores de PDFium y componentes de terceros), con binarios de pdfium-binaries de Benoît Blanchon.\n" +
-                   "• Plataforma: .NET y WPF (MIT, Microsoft).",
+            Margin = new Thickness(0, 0, 0, 18),
+            Text = "Software libre bajo la Licencia Pública General de GNU, versión 3 o posterior. Se distribuye sin ninguna garantía.",
         });
 
-        var licenses = MakeButton("Ver licencias");
-        licenses.Click += (_, _) => OpenLicenseFolder();
+        var licenses = MakeButton("Licencias y créditos");
+        licenses.Click += (_, _) => ShowCredits(this);
         var close = MakeButton("Cerrar", isDefault: true, isCancel: true);
         close.Click += (_, _) => Close();
-        panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Children = { licenses, close } });
+        panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Children = { licenses, close } });
         Content = panel;
     }
 
-    private static void OpenLicenseFolder()
+    /// <summary>Abre los avisos de terceros y créditos (el archivo que se instala junto al programa) en una ventana con formato.</summary>
+    internal static void ShowCredits(Window owner)
     {
-        string dir = AppContext.BaseDirectory;
-        string file = Path.Combine(dir, "LICENSE.txt");
+        string file = Path.Combine(AppContext.BaseDirectory, "AVISOS-DE-TERCEROS.md");
+        string text;
         try
         {
-            Process.Start(new ProcessStartInfo(File.Exists(file) ? file : dir) { UseShellExecute = true });
+            text = File.Exists(file) ? File.ReadAllText(file) : Fallback;
         }
-        catch
+        catch (IOException)
         {
-            // Sin programa asociado a .txt: no se puede hacer más.
+            text = Fallback;
         }
+
+        new DocumentWindow("Licencias y créditos", text, owner).Show();
     }
+
+    private const string Fallback = """
+        # Licencias y créditos
+
+        Velora es software libre bajo la **Licencia Pública General de GNU, versión 3 o posterior (GPL-3.0-or-later)**. Se distribuye sin ninguna garantía.
+
+        - La arquitectura de visor rápido y la terminología en español se inspiran en **Papers**, el visor de documentos de GNOME (GPL-2.0-or-later). Velora es un programa independiente y no está afiliado a GNOME.
+        - Motor de PDF: **PDFium** (licencia BSD), con binarios de pdfium-binaries de Benoît Blanchon.
+        - Plataforma: **.NET** y **WPF** (MIT, Microsoft).
+        """;
 }
 
 /// <summary>Cuadro de mensaje con botones en español (los de Windows siguen el idioma del sistema).</summary>

@@ -143,13 +143,28 @@ public partial class MainWindow
         CommandManager.InvalidateRequerySuggested();
     }
 
+    private DocumentWindow? _manualWindow;
+
+    /// <summary>Abre el manual en una ventana de Velora (con su formato), no en el programa que Windows tenga asociado a los .md.</summary>
     private void OpenManual()
     {
+        if (_manualWindow is { IsLoaded: true })
+        {
+            _manualWindow.Activate();
+            return;
+        }
+
         string file = Path.Combine(AppContext.BaseDirectory, "MANUAL.md");
         try
         {
-            string target = File.Exists(file) ? file : UpdateService.RepositoryUrl + "/blob/main/docs/MANUAL.md";
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true });
+            if (File.Exists(file))
+            {
+                _manualWindow = new DocumentWindow("Manual de uso de Velora", File.ReadAllText(file), this);
+                _manualWindow.Show();
+                return;
+            }
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(UpdateService.RepositoryUrl + "/blob/main/docs/MANUAL.md") { UseShellExecute = true });
         }
         catch (Exception ex)
         {

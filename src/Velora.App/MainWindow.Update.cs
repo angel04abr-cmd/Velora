@@ -36,15 +36,8 @@ public partial class MainWindow
 
             if (!manual && info.Version.ToString() == _settings.SkippedVersion) return;
             _pendingUpdate = info;
-            string first = info.Notes.Split('\n').Select(l => l.Trim().TrimStart('#', '-', '*', ' ')).FirstOrDefault(l => l.Length > 0) ?? "";
-            UpdateText.Text = $"Hay una versión nueva de Velora: {info.Version} (tienes la {UpdateService.CurrentVersion}). {first}";
-            UpdateBar.Visibility = Visibility.Visible;
-            if (manual)
-            {
-                string notes = info.Notes.Length > 700 ? info.Notes[..700] + "…" : info.Notes;
-                int r = Ask($"Hay una versión nueva de Velora: {info.Version} (tienes la {UpdateService.CurrentVersion}).\n\n{notes}".Trim(), ["Actualizar ahora", "Más tarde"], 0, 1);
-                if (r == 0) await ApplyUpdateAsync(info);
-            }
+            if (!manual) await WaitForIdleAsync();
+            await OfferUpdateAsync(info);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException or InvalidOperationException)
         {
@@ -64,22 +57,38 @@ public partial class MainWindow
         MessageDialog.Show(this, text, MessageDialog.Kind.Info, ["Aceptar"], 0, 0);
     }
 
-    private async void OnUpdateNow(object sender, RoutedEventArgs e)
+    /// <summary>Espera a que termine de abrirse el documento: el aviso no debe taparlo mientras carga.</summary>
+    private async Task WaitForIdleAsync()
     {
-        if (_pendingUpdate is { } info) await SafeRunAsync(() => ApplyUpdateAsync(info));
+        for (int i = 0; i < 100 && (Loading.Visibility == Visibility.Visible || _opening); i++) await Task.Delay(300);
     }
 
-    private void OnUpdateLater(object sender, RoutedEventArgs e) => UpdateBar.Visibility = Visibility.Collapsed;
-
-    private void OnUpdateSkip(object sender, RoutedEventArgs e)
+    /// <summary>Ventana con las novedades de la versión nueva y los botones Actualizar ahora, Más tarde y Omitir esta versión.</summary>
+    private async Task OfferUpdateAsync(UpdateInfo info)
     {
-        if (_pendingUpdate != null) _settings.SkippedVersion = _pendingUpdate.Version.ToString();
-        _settings.Save();
-        UpdateBar.Visibility = Visibility.Collapsed;
+        if (IsSilent)
+        {
+            ShowInfo($"Hay una versión nueva de Velora: {info.Version}.");
+            return;
+        }
+
+        var dlg = new UpdateDialog(info, UpdateService.CurrentVersion.ToString(), UpdateService.CanInstallInPlace,
+            (progress, status) => ApplyUpdateAsync(info, progress, status), this);
+        dlg.ShowDialog();
+        if (dlg.Result == UpdateDialog.Choice.Skip)
+        {
+            _settings.SkippedVersion = info.Version.ToString();
+            _settings.Save();
+        }
+
+        await Task.CompletedTask;
     }
 
-    /// <summary>Descarga, comprueba e instala la versión indicada y reinicia Velora.</summary>
-    internal async Task ApplyUpdateAsync(UpdateInfo info)
+    /// <summary>
+    /// Descarga, comprueba e instala la versión indicada y reinicia Velora. Con <paramref name="progress"/> el avance se muestra en la ventana de
+    /// actualización; sin él (pruebas automáticas) se usa la capa de «cargando» de la ventana principal.
+    /// </summary>
+    internal async Task ApplyUpdateAsync(UpdateInfo info, IProgress<double>? progress = null, Action<string>? status = null)
     {
         if (_updating) return;
         if (!UpdateService.CanInstallInPlace)
@@ -91,32 +100,36 @@ public partial class MainWindow
         }
 
         int others = Process.GetProcessesByName("Velora").Count(p => p.Id != Environment.ProcessId);
-        if (others > 0)
-        {
-            Error("Hay otras ventanas de Velora abiertas. Ciérralas (guardando antes tus anotaciones) y vuelve a pulsar «Actualizar ahora».");
-            return;
-        }
+        if (others > 0) throw new InvalidOperationException("Hay otras ventanas de Velora abiertas. Ciérralas (guardando antes tus anotaciones) y vuelve a pulsar «Actualizar ahora».");
 
-        if (!await ConfirmDiscardAsync()) return;
+        if (!await ConfirmDiscardAsync()) throw new InvalidOperationException("Actualización cancelada: hay cambios sin guardar.");
         _updating = true;
+        bool overlay = progress == null;
         try
         {
-            ShowLoading($"Descargando Velora {info.Version}… 0 %");
-            var progress = new Progress<double>(p => LoadingText.Text = $"Descargando Velora {info.Version}… {p:P0}");
-            string msi = await UpdateService.PrepareAsync(info, progress);
-            LoadingText.Text = $"Instalando Velora {info.Version}… (Windows pedirá permiso de administrador)";
+            if (overlay) ShowLoading($"Descargando Velora {info.Version}… 0 %");
+            status?.Invoke($"Descargando Velora {info.Version}…");
+            var report = new Progress<double>(p =>
+            {
+                progress?.Report(p);
+                if (overlay) LoadingText.Text = $"Descargando Velora {info.Version}… {p:P0}";
+                else status?.Invoke($"Descargando Velora {info.Version}… {p:P0}");
+            });
+            string msi = await UpdateService.PrepareAsync(info, report);
+            string installing = $"Instalando Velora {info.Version}… Windows pedirá permiso de administrador; Velora se cerrará y se abrirá sola.";
+            if (overlay) LoadingText.Text = installing;
+            else status?.Invoke(installing);
             string? reopen = _doc?.Path;
             SaveViewState();
             _settings.Save();
             UpdateService.LaunchApply(msi, info, reopen);
             Application.Current.Shutdown();
         }
-        catch (Exception ex)
+        catch
         {
             _updating = false;
-            HideLoading();
-            ErrorLog.Write(ex);
-            Error("No se pudo actualizar Velora; se sigue usando la versión actual.\n\n" + ex.Message);
+            if (overlay) HideLoading();
+            throw;
         }
     }
 

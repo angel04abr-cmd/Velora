@@ -42,7 +42,7 @@ internal static class AppCommands
     public static readonly RoutedUICommand Forward = Make("Ir hacia delante", nameof(Forward), (Key.Right, Alt));
     public static readonly RoutedUICommand TwoPages = Make("Dos páginas", nameof(TwoPages));
     public static readonly RoutedUICommand CoverAlone = Make("Portada suelta", nameof(CoverAlone));
-    public static readonly RoutedUICommand About = Make("Acerca de Velora", nameof(About), (Key.F1, None));
+    public static readonly RoutedUICommand About = Make("Acerca de Velora", nameof(About));
     public static readonly RoutedUICommand Escape = Make("Cerrar", nameof(Escape), (Key.Escape, None));
     public static readonly RoutedUICommand Highlight = Make("Resaltar", nameof(Highlight));
     public static readonly RoutedUICommand Underline = Make("Subrayar", nameof(Underline));
@@ -54,7 +54,7 @@ internal static class AppCommands
     public static readonly RoutedUICommand InkToolMenu = Make("Dibujar a mano alzada", nameof(InkToolMenu));
     public static readonly RoutedUICommand ColorMenu = Make("Color de las anotaciones…", nameof(ColorMenu));
     public static readonly RoutedUICommand Exit = Make("Salir", nameof(Exit));
-    public static readonly RoutedUICommand Manual = Make("Manual de uso", nameof(Manual));
+    public static readonly RoutedUICommand Manual = Make("Manual de uso", nameof(Manual), (Key.F1, None));
     public static readonly RoutedUICommand CheckUpdates = Make("Buscar actualizaciones…", nameof(CheckUpdates));
     public static readonly RoutedUICommand AutoUpdates = Make("Buscar actualizaciones automáticamente", nameof(AutoUpdates));
     public static readonly RoutedUICommand OpenFolder = Make("Mostrar el archivo en el Explorador", nameof(OpenFolder));

@@ -257,30 +257,40 @@ internal sealed class Automation
 
     private async Task DialogShotAsync(string what)
     {
+        bool keep = what.EndsWith("!");
+        if (keep) what = what.TrimEnd('!');
         string dir = Path.GetDirectoryName(_args.Log ?? Path.Combine(Path.GetTempPath(), "x"))!;
         Window? dlg = what switch
         {
             "propiedades" => new PropertiesDialog(await _w.CurrentDocument!.GetPropertiesAsync()),
             "acerca" => new AboutDialog(),
             "contrasena" => new PasswordDialog("protegido.pdf", true),
+            "manual" => new DocumentWindow("Manual de uso de Velora", File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "MANUAL.md")), null),
+            "licencias" => new DocumentWindow("Licencias y créditos", File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "AVISOS-DE-TERCEROS.md")), null),
+            "actualizacion" => new UpdateDialog(new Velora.Updates.UpdateInfo(new Version(1, 0, 4), "v1.0.4",
+                "- **Desplazamiento rápido en libros grandes**: al arrastrar la barra o girar la rueda muy deprisa por un libro de miles de páginas, las páginas y las miniaturas se quedaban en blanco y a veces ya no cargaban. Ahora se ve al instante un borrador borroso de cada página y la calidad completa llega al detenerte.\n- Velora ya no se pone a leer el texto de miles de páginas que pasaste de largo.\n- Menos memoria: tras desplazarse a toda velocidad por un libro de 8000 páginas el uso bajó de casi 3 GB a menos de 1 GB.",
+                "https://github.com/angel04abr-cmd/Velora/releases/tag/v1.0.4", "Velora-1.0.4-x64.msi", "https://example.invalid/x.msi", 4825088, null),
+                "1.0.3", true, (_, _) => Task.CompletedTask, null),
             _ => throw new InvalidOperationException("diálogo desconocido"),
         };
-        dlg.Owner = _w;
+        if (what is not ("manual" or "licencias" or "actualizacion")) dlg.Owner = _w;
+        else if (what != "actualizacion") { dlg.Width = 760; dlg.Height = 760; }
         dlg.Show();
-        await Task.Delay(500);
+        await Task.Delay(700);
         string file = Path.Combine(dir, $"dialogo-{what}.png");
         var root = (FrameworkElement)dlg.Content;
         var dpi = VisualTreeHelper.GetDpi(dlg);
         var bmp = new RenderTargetBitmap((int)Math.Ceiling(root.ActualWidth * dpi.DpiScaleX), (int)Math.Ceiling(root.ActualHeight * dpi.DpiScaleY), 96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32);
         var back = new DrawingVisual();
-        using (var dc = back.RenderOpen()) dc.DrawRectangle(dlg.Background, null, new Rect(0, 0, root.ActualWidth, root.ActualHeight));
+        using (var dc = back.RenderOpen()) dc.DrawRectangle((Brush)_w.FindResource("SolidBackgroundFillColorBaseBrush"), null, new Rect(0, 0, root.ActualWidth, root.ActualHeight));
         bmp.Render(back);
         bmp.Render(root);
         var enc = new PngBitmapEncoder();
         enc.Frames.Add(BitmapFrame.Create(bmp));
         using (var fs = File.Create(file)) enc.Save(fs);
+        if (keep) await Task.Delay(9000);
         dlg.Close();
-        Log($"captura de diálogo: {file}");
+        Log($"captura de diálogo: {file} (ventana {dlg.ActualWidth:0}x{dlg.ActualHeight:0}, contenido {root.ActualWidth:0}x{root.ActualHeight:0})");
     }
 
     private static string Stats(List<double> v)

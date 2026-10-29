@@ -156,7 +156,20 @@ public partial class MainWindow : Window
         Bind(AppCommands.ColorMenu, () => ColorPopup.Visibility = Visibility.Visible, hasDoc);
         Bind(AppCommands.OpenFolder, () =>
         {
-            if (_doc != null) Process.Start("explorer.exe", $"/select,\"{_doc.Path}\"");
+            if (_doc == null) return;
+            // Lanzar el Explorador puede tardar: se hace fuera del hilo de la ventana para que Velora no se quede parada.
+            string path = _doc.Path;
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = false });
+                }
+                catch (Exception ex)
+                {
+                    ErrorLog.Write(ex);
+                }
+            });
         }, hasDoc);
 
         CommandBindings.Add(new CommandBinding(ApplicationCommands.Copy,
@@ -608,8 +621,22 @@ public partial class MainWindow : Window
             return;
         }
 
-        await _doc.SaveCopyAsync(dlg.FileName);
-        ShowInfo(string.Format(T.SavedCopy, Path.GetFileName(dlg.FileName)));
+        // Sin cambios pendientes la copia es una copia del archivo (rápida y sin ocupar el trabajador de PDFium, que si no dejaría de dibujar
+        // mientras se escribe todo el documento); con anotaciones nuevas hay que escribirlas a través de PDFium.
+        var doc = _doc;
+        string target = dlg.FileName;
+        ShowLoading(string.Format(T.SavingCopy, Path.GetFileName(target)));
+        try
+        {
+            if (!doc.IsModified) await Task.Run(() => File.Copy(doc.Path, target, overwrite: true));
+            else await doc.SaveCopyAsync(target);
+        }
+        finally
+        {
+            HideLoading();
+        }
+
+        ShowInfo(string.Format(T.SavedCopy, Path.GetFileName(target)));
     }
 
     private async Task PrintAsync()

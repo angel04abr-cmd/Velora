@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <None Include="..\..\LICENSE" Link="LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('..\..\LICENSE')" />
+    <None Include="..\..\docs\MANUAL.md" Link="MANUAL.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('..\..\docs\MANUAL.md')" />
     <None Include="..\..\AVISOS-DE-TERCEROS.md" Link="AVISOS-DE-TERCEROS.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('..\..\AVISOS-DE-TERCEROS.md')" />
   </ItemGroup>
 

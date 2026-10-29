@@ -301,23 +301,6 @@
             </Grid>
         </Border>
 
-        <!-- ===== Aviso de actualización ===== -->
-        <Border x:Name="UpdateBar" Grid.Row="1" Visibility="Collapsed" Padding="14,8" BorderThickness="0,0,0,1"
-                BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" Background="{DynamicResource BrandSelectionBrush}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock x:Name="UpdateText" VerticalAlignment="Center" TextWrapping="Wrap" />
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0">
-                    <Button x:Name="UpdateNow" Content="Actualizar ahora" Click="OnUpdateNow" Padding="14,5" Margin="0,0,6,0" />
-                    <Button Content="Más tarde" Click="OnUpdateLater" Padding="12,5" Margin="0,0,6,0" />
-                    <Button Content="Omitir esta versión" Click="OnUpdateSkip" Padding="12,5" />
-                </StackPanel>
-            </Grid>
-        </Border>
-
         <!-- ===== Barra de búsqueda ===== -->
         <Border x:Name="SearchBar" Grid.Row="2" Visibility="Collapsed" Padding="10,6" BorderThickness="0,0,0,1"
                 BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
