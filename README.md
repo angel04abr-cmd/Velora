@@ -7,7 +7,7 @@ que abre incluso PDF muy pesados con una fluidez notable. Velora recoge las idea
 (dibujar solo lo que se ve, guardar en memoria lo ya dibujado y trabajar en segundo plano con prioridades) y las
 construye de cero para Windows con **C# / WPF** y el motor **PDFium**, el mismo que usa Chrome.
 
-> Versión 1.0.4 · Licencia **GPL-3.0 o posterior** · No está afiliado al Proyecto GNOME (ver [avisos](AVISOS-DE-TERCEROS.md)).
+> Versión 1.0.5 · Licencia **GPL-3.0 o posterior** · No está afiliado al Proyecto GNOME (ver [avisos](AVISOS-DE-TERCEROS.md)).
 
 ## Descargar e instalar
 
@@ -49,7 +49,7 @@ automáticos). El icono original está en `diseno/`; los colores se aplican en `
 
 Necesitas **Windows 10 u 11** y el [SDK de .NET 10](https://dotnet.microsoft.com/download/dotnet/10.0).
 
-1. `.\build.ps1 -Instalar` crea el instalador `dist\Velora-1.0.4-x64.msi` y lo ejecuta (Windows pide permiso de administrador). La primera vez descarga WiX (en `.tools\`).
+1. `.\build.ps1 -Instalar` crea el instalador `dist\Velora-1.0.5-x64.msi` y lo ejecuta (Windows pide permiso de administrador). La primera vez descarga WiX (en `.tools\`).
 2. Para que los PDF se abran siempre con Velora: *Configuración → Aplicaciones → Aplicaciones predeterminadas → Velora → .pdf*.
 
 **Actualizar:** Velora lo hace sola (ver arriba), o ejecuta el `.msi` de la versión nueva (reemplaza a la anterior y conserva tus ajustes).

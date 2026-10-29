@@ -1,5 +1,14 @@
 # Historial de cambios
 
+## [1.0.5] - 2026-10-29
+
+- **Aviso de actualización en una ventana propia**, con las novedades bien presentadas (negritas y listas) y la descarga con barra de progreso en esa misma ventana. Sustituye a la barra roja de arriba.
+- **Vista previa de los vínculos**: al dejar el puntero sobre un vínculo interno (una entrada del índice, una referencia) aparece una miniatura de la zona de destino; sobre uno externo, la dirección.
+- **Índices con muchos vínculos**: un índice de 26 entradas solo reconocía 11 (se cerraba por error la página que se estaba leyendo). Ahora los reconoce todos.
+- **Imprimir** tiene ventana propia con vista previa de cada hoja, elección de impresora, copias, orientación, color y páginas, y acceso a las propiedades de la impresora.
+- **Manual de uso** dentro de Velora (`F1`), con su formato, en lugar de abrirse en Word. **Acerca de** más sencillo; las licencias y créditos están en su propia ventana.
+- **Mostrar el archivo en el Explorador** ya no deja Velora parada, y **Guardar una copia** de un documento sin cambios es una copia directa del archivo (rápida) con aviso de progreso.
+
 ## [1.0.4] - 2026-10-28
 
 - **Desplazamiento rápido en libros grandes**: al arrastrar la barra o girar la rueda muy deprisa por un libro de miles de páginas, las páginas y las miniaturas se quedaban en blanco

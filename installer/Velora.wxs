@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Instalador MSI de Velora (WiX Toolset 6). Se compila con (build.ps1 -Instalador lo hace solo):
-    .tools\wix.exe build installer\Velora.wxs -arch x64 -d Version=1.0.4 -d Source=dist\Velora-1.0.4-win-x64 -ext WixToolset.UI.wixext -ext WixToolset.Netfx.wixext -culture es-ES -o dist\Velora-1.0.4-x64.msi
+    .tools\wix.exe build installer\Velora.wxs -arch x64 -d Version=1.0.5 -d Source=dist\Velora-1.0.5-win-x64 -ext WixToolset.UI.wixext -ext WixToolset.Netfx.wixext -culture es-ES -o dist\Velora-1.0.5-x64.msi
   Se instala PARA TODO EL EQUIPO, en C:\Program Files\Velora: pide permisos de administrador (también las actualizaciones automáticas),
   deja el acceso en el menú Inicio con la opción «Desinstalar» y aparece en «Aplicaciones instaladas» de Windows.
 -->

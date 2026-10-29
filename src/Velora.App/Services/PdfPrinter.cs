@@ -10,45 +10,26 @@ using Velora.Pdf;
 
 namespace Velora.App;
 
-/// <summary>Impresión con el cuadro estándar de Windows. Cada página se dibuja con PDFium a 300 ppp.</summary>
+/// <summary>Impresión: la ventana de Velora con vista previa elige los ajustes y cada página se dibuja con PDFium a 300 ppp.</summary>
 internal static class PdfPrinter
 {
-    public static Task<bool> PrintAsync(Window owner, PdfDocument doc, PageSize[] sizes, int currentPage)
+    public static Task<bool> PrintAsync(Window owner, PdfDocument doc, PageSize[] sizes, int currentPage) =>
+        Task.FromResult(new PrintWindow(owner, doc, sizes, currentPage).ShowDialog() == true);
+
+    internal static DocumentPaginator CreatePaginator(PdfDocument doc, PageSize[] sizes, List<int> pages, Size area, bool autoRotate = true) =>
+        new PdfPaginator(doc, sizes, pages, area, autoRotate);
+
+    /// <summary>
+    /// Cómo cabe una página en el área imprimible: si hay que girarla (página apaisada en papel vertical o al revés, solo en modo automático)
+    /// y el tamaño que ocupa, en unidades de 1/96 de pulgada.
+    /// </summary>
+    internal static (bool Rotate, double Width, double Height) Fit(PageSize s, Size area, bool autoRotate)
     {
-        var pd = new PrintDialog
-        {
-            UserPageRangeEnabled = true,
-            CurrentPageEnabled = true,
-            MinPage = 1,
-            MaxPage = (uint)doc.PageCount,
-            PageRange = new PageRange(1, doc.PageCount),
-        };
-        if (pd.ShowDialog() != true) return Task.FromResult(false);
-
-        var pages = new List<int>();
-        switch (pd.PageRangeSelection)
-        {
-            case PageRangeSelection.CurrentPage:
-                pages.Add(currentPage);
-                break;
-            case PageRangeSelection.UserPages:
-                for (int p = Math.Max(1, pd.PageRange.PageFrom); p <= Math.Min(doc.PageCount, pd.PageRange.PageTo); p++) pages.Add(p - 1);
-                break;
-            default:
-                for (int p = 0; p < doc.PageCount; p++) pages.Add(p);
-                break;
-        }
-
-        if (pages.Count == 0) return Task.FromResult(false);
-        var area = new Size(pd.PrintableAreaWidth, pd.PrintableAreaHeight);
-        if (area.Width <= 0 || area.Height <= 0) area = new Size(793, 1122);
-        var paginator = new PdfPaginator(doc, sizes, pages, area);
-        pd.PrintDocument(paginator, Path.GetFileName(doc.Path));
-        return Task.FromResult(true);
+        bool rotate = autoRotate && (s.Width > s.Height) != (area.Width > area.Height);
+        double pw = rotate ? s.Height : s.Width, ph = rotate ? s.Width : s.Height;
+        double k = Math.Min(area.Width / pw, area.Height / ph);
+        return (rotate, pw * k, ph * k);
     }
-
-    internal static DocumentPaginator CreatePaginator(PdfDocument doc, PageSize[] sizes, List<int> pages, Size area) =>
-        new PdfPaginator(doc, sizes, pages, area);
 
     private sealed class PdfPaginator : DocumentPaginator
     {
@@ -56,9 +37,11 @@ internal static class PdfPrinter
         private readonly PdfDocument _doc;
         private readonly PageSize[] _sizes;
         private readonly List<int> _pages;
+        private readonly bool _autoRotate;
 
-        public PdfPaginator(PdfDocument doc, PageSize[] sizes, List<int> pages, Size area)
+        public PdfPaginator(PdfDocument doc, PageSize[] sizes, List<int> pages, Size area, bool autoRotate)
         {
+            _autoRotate = autoRotate;
             _doc = doc;
             _sizes = sizes;
             _pages = pages;
@@ -75,11 +58,8 @@ internal static class PdfPrinter
             int page = _pages[pageNumber];
             var s = _sizes[page];
             var area = PageSize;
-            // Si la página es apaisada y el papel vertical (o al revés), se gira para aprovechar el papel.
-            bool rotate = (s.Width > s.Height) != (area.Width > area.Height);
-            double pw = rotate ? s.Height : s.Width, ph = rotate ? s.Width : s.Height;
-            double k = Math.Min(area.Width / pw, area.Height / ph);
-            double wDip = pw * k, hDip = ph * k;
+            // Si la página es apaisada y el papel vertical (o al revés), se gira para aprovechar el papel (solo en modo automático).
+            var (rotate, wDip, hDip) = Fit(s, area, _autoRotate);
             double pxPerDip = TargetDpi / 96.0;
             int wPx = Math.Clamp((int)(wDip * pxPerDip), 1, 6000), hPx = Math.Clamp((int)(hDip * pxPerDip), 1, 6000);
 

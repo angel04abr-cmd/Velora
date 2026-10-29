@@ -286,6 +286,7 @@ internal sealed class Automation
             "propiedades" => new PropertiesDialog(await _w.CurrentDocument!.GetPropertiesAsync()),
             "acerca" => new AboutDialog(),
             "contrasena" => new PasswordDialog("protegido.pdf", true),
+            "imprimir" => new PrintWindow(_w, _w.CurrentDocument!, await _w.CurrentDocument!.GetPageSizesAsync(), 0),
             "manual" => new DocumentWindow("Manual de uso de Velora", File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "MANUAL.md")), null),
             "licencias" => new DocumentWindow("Licencias y créditos", File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "AVISOS-DE-TERCEROS.md")), null),
             "actualizacion" => new UpdateDialog(new Velora.Updates.UpdateInfo(new Version(1, 0, 4), "v1.0.4",
@@ -294,10 +295,10 @@ internal sealed class Automation
                 "1.0.3", true, (_, _) => Task.CompletedTask, null),
             _ => throw new InvalidOperationException("diálogo desconocido"),
         };
-        if (what is not ("manual" or "licencias" or "actualizacion")) dlg.Owner = _w;
+        if (what is not ("manual" or "licencias" or "actualizacion" or "imprimir")) dlg.Owner = _w;
         else if (what != "actualizacion") { dlg.Width = 760; dlg.Height = 760; }
         dlg.Show();
-        await Task.Delay(700);
+        await Task.Delay(what == "imprimir" ? 2500 : 700);
         string file = Path.Combine(dir, $"dialogo-{what}.png");
         var root = (FrameworkElement)dlg.Content;
         var dpi = VisualTreeHelper.GetDpi(dlg);

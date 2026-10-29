@@ -8,7 +8,7 @@ doble clic maximiza. Con la ventana estrecha el menú se recoge en un botón ☰
 
 ## Actualizaciones
 
-Velora busca una versión nueva en GitHub cuando arranca (como mucho una vez al día) y muestra un aviso con **Actualizar ahora**, **Más tarde** y **Omitir esta versión**.
+Velora busca una versión nueva en GitHub cuando arranca (como mucho una vez al día) y abre una ventana con las novedades de la versión nueva y los botones **Actualizar ahora**, **Más tarde** y **Omitir esta versión** (la descarga se sigue en esa misma ventana).
 Al aceptar, descarga el instalador (.msi), comprueba su huella SHA-256 y lo ejecuta: Windows pide permiso de administrador, Velora se cierra, se instala la versión nueva y se abre de nuevo con tu documento. *Ayuda → Buscar actualizaciones…* lo comprueba al momento;
 *Ayuda → Buscar actualizaciones automáticamente* lo activa o desactiva. Solo se actualiza sola la copia instalada con el instalador (.msi); una copia portátil abre la página de descargas.
 
@@ -30,7 +30,12 @@ Al aceptar, descarga el instalador (.msi), comprueba su huella SHA-256 y lo ejec
 | Pantalla completa | `F11` (salir con `Esc`) |
 | Presentación | `F5`: flechas, espacio o clic para avanzar; clic derecho para retroceder; `B` pantalla en negro; `Esc` sale |
 | Barra lateral | Botón de panel (arriba a la izquierda) o `F9`: miniaturas, índice, anotaciones y adjuntos |
+| Vista previa de un vínculo | Deja el puntero un momento sobre un vínculo del documento (por ejemplo, una entrada del índice): aparece una miniatura de la zona a la que lleva, o la dirección si es una página web |
 | Volver atrás / adelante | `Alt+←` / `Alt+→` (después de usar un enlace, el índice o una miniatura) |
+
+## Ayuda
+
+`F1` abre este manual en una ventana de Velora. **Ayuda → Acerca de Velora** muestra la versión y, con **Licencias y créditos**, de dónde viene lo que usa el programa.
 
 ## Ventana estrecha
 
@@ -62,8 +67,9 @@ Velora guarda una copia llamada «… (con anotaciones).pdf» y sigue trabajando
 
 ## Imprimir
 
-`Ctrl+P` abre el cuadro de impresión de Windows (todas las páginas, la actual o un intervalo). Las páginas se dibujan a 300 ppp y se
-giran solas si el papel es de otra orientación.
+`Ctrl+P` abre la ventana de impresión de Velora, con **vista previa** de cada hoja (flechas ← → para pasar de una a otra): elige la impresora, las copias,
+la orientación, color o blanco y negro y las páginas (todo el documento, la actual o un intervalo como `1-3, 7`). **Propiedades de la impresora…** abre los ajustes propios de tu impresora.
+Las páginas se dibujan a 300 ppp y, en orientación automática, se giran solas si el papel es de otra orientación.
 
 ## Datos que guarda Velora
 
